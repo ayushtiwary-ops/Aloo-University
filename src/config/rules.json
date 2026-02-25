@@ -1,5 +1,193 @@
 {
-  "_comment": "Phase 2 will populate field-level compliance rules. ValidationEngine reads this.",
-  "_version": "0.0.0",
-  "fields": {}
+  "_version": "1.0.0",
+  "_cohort": "default",
+  "_description": "AdmitGuard compliance rules for ALOO University. All numeric thresholds, allowed values, and dependency conditions live here. ValidationEngine contains no hardcoded values.",
+
+  "rules": [
+
+    {
+      "field": "fullName",
+      "ruleType": "strict",
+      "validationType": "minLengthNoNumbers",
+      "parameters": {
+        "minLength": 2
+      },
+      "errorMessage": "Full name must be at least 2 characters and must not contain numbers."
+    },
+
+    {
+      "field": "email",
+      "ruleType": "strict",
+      "validationType": "emailFormat",
+      "parameters": {},
+      "errorMessage": "Enter a valid email address (e.g. candidate@domain.com)."
+    },
+
+    {
+      "field": "phone",
+      "ruleType": "strict",
+      "validationType": "indianMobile",
+      "parameters": {
+        "digitCount": 10,
+        "allowedPrefixes": ["6", "7", "8", "9"]
+      },
+      "errorMessage": "Phone must be a 10-digit Indian mobile number starting with 6, 7, 8, or 9."
+    },
+
+    {
+      "field": "dateOfBirth",
+      "ruleType": "strict",
+      "validationType": "ageRange",
+      "parameters": {
+        "minAge": 17,
+        "maxAge": 35
+      },
+      "errorMessage": "Candidate must be between 17 and 35 years of age at the time of admission."
+    },
+
+    {
+      "field": "dateOfBirth",
+      "ruleType": "soft",
+      "validationType": "ageRangeExtended",
+      "parameters": {
+        "minAge": 36,
+        "maxAge": 40
+      },
+      "errorMessage": "Candidate age is between 36 and 40. An exception with valid rationale is required to proceed.",
+      "exceptionAllowed": true,
+      "rationaleKeywords": ["experience", "industry", "returning", "career change", "sponsored"]
+    },
+
+    {
+      "field": "aadhaar",
+      "ruleType": "strict",
+      "validationType": "aadhaarFormat",
+      "parameters": {
+        "digitCount": 12
+      },
+      "errorMessage": "Aadhaar number must be exactly 12 digits with no spaces or letters."
+    },
+
+    {
+      "field": "qualification",
+      "ruleType": "strict",
+      "validationType": "allowedValue",
+      "parameters": {
+        "allowedValues": ["ssc", "hsc", "diploma", "bachelors", "masters", "phd"]
+      },
+      "errorMessage": "Please select a valid qualification from the list."
+    },
+
+    {
+      "field": "graduationYear",
+      "ruleType": "strict",
+      "validationType": "yearRange",
+      "parameters": {
+        "minYear": 1980,
+        "maxYearOffset": 0
+      },
+      "_paramNote": "maxYearOffset: 0 means current calendar year. ValidationEngine resolves this at runtime.",
+      "errorMessage": "Graduation year must be between 1980 and the current year."
+    },
+
+    {
+      "field": "graduationYear",
+      "ruleType": "soft",
+      "validationType": "recentGraduation",
+      "parameters": {
+        "recentYearsThreshold": 0
+      },
+      "_paramNote": "recentYearsThreshold: 0 means current year. Flags candidates graduating this year for document verification.",
+      "errorMessage": "Candidate graduated in the current year. Original mark sheet verification is required before proceeding.",
+      "exceptionAllowed": true,
+      "rationaleKeywords": ["final year", "awaiting result", "provisional", "degree in progress"]
+    },
+
+    {
+      "field": "percentageOrCgpa",
+      "ruleType": "strict",
+      "validationType": "scoreByGradingMode",
+      "parameters": {
+        "percentage": { "min": 0, "max": 100 },
+        "cgpa":       { "min": 0, "max": 10  }
+      },
+      "dependencies": ["gradingMode"],
+      "_paramNote": "ValidationEngine reads gradingMode field to select the correct parameter set.",
+      "errorMessage": "Enter a valid score. Percentage must be 0–100; CGPA must be 0–10."
+    },
+
+    {
+      "field": "percentageOrCgpa",
+      "ruleType": "soft",
+      "validationType": "minimumAcademicThreshold",
+      "parameters": {
+        "percentageMinimum": 50,
+        "cgpaMinimum": 5.0
+      },
+      "dependencies": ["gradingMode"],
+      "errorMessage": "Academic score is below the recommended threshold (50% / 5.0 CGPA). An exception with rationale is required.",
+      "exceptionAllowed": true,
+      "rationaleKeywords": ["relevant experience", "entrance score", "research", "portfolio", "exceptional"]
+    },
+
+    {
+      "field": "score",
+      "ruleType": "strict",
+      "validationType": "integerRange",
+      "parameters": {
+        "min": 0,
+        "max": 100
+      },
+      "errorMessage": "Screening test score must be a whole number between 0 and 100."
+    },
+
+    {
+      "field": "score",
+      "ruleType": "soft",
+      "validationType": "minimumScreeningThreshold",
+      "parameters": {
+        "minimumPassingScore": 40
+      },
+      "errorMessage": "Screening test score is below the minimum passing threshold of 40. An exception with rationale is required.",
+      "exceptionAllowed": true,
+      "rationaleKeywords": ["interview performance", "strong profile", "recommendation", "exceptional background"]
+    },
+
+    {
+      "field": "interviewStatus",
+      "ruleType": "strict",
+      "validationType": "allowedValue",
+      "parameters": {
+        "allowedValues": ["cleared", "waitlisted", "rejected"]
+      },
+      "errorMessage": "Interview status must be Cleared, Waitlisted, or Rejected."
+    },
+
+    {
+      "field": "interviewStatus",
+      "ruleType": "system",
+      "validationType": "blocksFieldWhenValue",
+      "parameters": {
+        "blockedField": "offerLetterSent",
+        "blockedFieldValue": true,
+        "whenValue": "rejected"
+      },
+      "dependencies": ["offerLetterSent"],
+      "errorMessage": "Offer letter cannot be issued to a candidate whose interview status is Rejected."
+    },
+
+    {
+      "field": "offerLetterSent",
+      "ruleType": "system",
+      "validationType": "dependsOnFieldValue",
+      "parameters": {
+        "dependsOn": "interviewStatus",
+        "allowedWhen": ["cleared"],
+        "blockedWhen": ["waitlisted", "rejected"]
+      },
+      "dependencies": ["interviewStatus"],
+      "errorMessage": "Offer letter can only be marked as sent when interview status is Cleared."
+    }
+
+  ]
 }

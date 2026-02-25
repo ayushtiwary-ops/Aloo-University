@@ -1,17 +1,59 @@
 {
-  "_comment": "Formal field schema. Mirrors CANDIDATE_FIELDS. Phase 2 uses this for config-driven rendering.",
-  "_version": "0.0.0",
-  "fields": [
-    { "id": "fullName",         "label": "Full Name",             "type": "text"   },
-    { "id": "email",            "label": "Email Address",         "type": "email"  },
-    { "id": "phone",            "label": "Phone Number",          "type": "tel"    },
-    { "id": "dateOfBirth",      "label": "Date of Birth",         "type": "date"   },
-    { "id": "aadhaar",          "label": "Aadhaar Number",        "type": "text"   },
-    { "id": "qualification",    "label": "Highest Qualification", "type": "select" },
-    { "id": "graduationYear",   "label": "Graduation Year",       "type": "number" },
-    { "id": "percentageOrCgpa", "label": "Percentage / CGPA",     "type": "score"  },
-    { "id": "score",            "label": "Screening Test Score",  "type": "number" },
-    { "id": "interviewStatus",  "label": "Interview Status",      "type": "select" },
-    { "id": "offerLetterSent",  "label": "Offer Letter Sent",     "type": "toggle" }
+  "_version": "1.0.0",
+  "_description": "Defines the required structure of every rule object in rules.json. ConfigLoader validates each rule against this schema at startup. ValidationEngine never reads this file.",
+
+  "rule": {
+    "required": ["field", "ruleType", "validationType", "errorMessage"],
+
+    "allowedRuleTypes": ["strict", "soft", "system"],
+
+    "properties": {
+      "field":           { "type": "string",  "minLength": 1 },
+      "ruleType":        { "type": "string",  "enum": ["strict", "soft", "system"] },
+      "validationType":  { "type": "string",  "minLength": 1 },
+      "parameters":      { "type": "object"  },
+      "errorMessage":    { "type": "string",  "minLength": 1 },
+      "exceptionAllowed":{ "type": "boolean" },
+      "rationaleKeywords":{ "type": "array", "items": { "type": "string" } },
+      "dependencies":    { "type": "array",  "items": { "type": "string" } }
+    },
+
+    "conditionalRequired": {
+      "whenRuleType": "soft",
+      "thenRequired": ["exceptionAllowed"]
+    }
+  },
+
+  "knownFields": [
+    "fullName",
+    "email",
+    "phone",
+    "dateOfBirth",
+    "aadhaar",
+    "qualification",
+    "graduationYear",
+    "percentageOrCgpa",
+    "gradingMode",
+    "score",
+    "interviewStatus",
+    "offerLetterSent"
+  ],
+
+  "knownValidationTypes": [
+    "minLengthNoNumbers",
+    "emailFormat",
+    "indianMobile",
+    "ageRange",
+    "ageRangeExtended",
+    "aadhaarFormat",
+    "allowedValue",
+    "yearRange",
+    "recentGraduation",
+    "scoreByGradingMode",
+    "minimumAcademicThreshold",
+    "integerRange",
+    "minimumScreeningThreshold",
+    "blocksFieldWhenValue",
+    "dependsOnFieldValue"
   ]
 }
