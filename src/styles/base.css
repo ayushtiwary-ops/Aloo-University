@@ -1,0 +1,36 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  color: var(--color-primary);
+  line-height: 1.2;
+}
+
+::selection {
+  background-color: var(--color-accent-subtle);
+}
+
+/* Accessible focus ring — matches brand accent */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}

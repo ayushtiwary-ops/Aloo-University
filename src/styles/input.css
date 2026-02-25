@@ -1,0 +1,140 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Label ──────────────────────────────────────────────────── */
+
+.field__label {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: default;
+  user-select: none;
+}
+
+.field__indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-neutral-state);
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+/* ── Input / Select ─────────────────────────────────────────── */
+
+.field__control {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast),
+              box-shadow var(--transition-fast);
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+}
+
+.field__control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.field__control:hover {
+  border-color: var(--color-text-muted);
+}
+
+.field__control:focus {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+/* Select arrow */
+.field__control--select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239E8E80' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-4) center;
+  padding-right: var(--space-7);
+  cursor: pointer;
+}
+
+/* Date input — normalise across browsers */
+.field__control[type="date"] {
+  cursor: text;
+}
+
+/* Number input — remove spinners */
+.field__control[type="number"]::-webkit-inner-spin-button,
+.field__control[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.field__control[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* ── Score row (number + toggle side-by-side) ───────────────── */
+
+.field__score-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.field__score-row .field__control {
+  flex: 1;
+}
+
+/* ── Toggle group (Yes/No, Percentage/CGPA) ─────────────────── */
+
+.field__toggle-group {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.field__toggle-option {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.field__toggle-option:hover {
+  border-color: var(--color-accent);
+  color: var(--color-primary);
+}
+
+.field__toggle-option[aria-pressed="true"] {
+  background-color: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* ── Validation message ──────────────────────────────────────── */
+
+.field__message {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  min-height: 18px;
+  line-height: 1.5;
+}

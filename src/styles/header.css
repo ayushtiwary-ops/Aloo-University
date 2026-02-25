@@ -1,0 +1,47 @@
+.site-header {
+  background-color: var(--color-primary);
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border-bottom: 3px solid var(--color-accent);
+}
+
+.site-header__logo {
+  flex-shrink: 0;
+}
+
+.site-header__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.site-header__university {
+  font-family: var(--font-serif);
+  font-size: var(--text-h1);
+  font-weight: 700;
+  color: var(--color-accent-subtle);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.site-header__system {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 600px) {
+  .site-header {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .site-header__university {
+    font-size: 22px;
+  }
+}

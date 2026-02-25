@@ -1,0 +1,17 @@
+{
+  "_comment": "Formal field schema. Mirrors CANDIDATE_FIELDS. Phase 2 uses this for config-driven rendering.",
+  "_version": "0.0.0",
+  "fields": [
+    { "id": "fullName",         "label": "Full Name",             "type": "text"   },
+    { "id": "email",            "label": "Email Address",         "type": "email"  },
+    { "id": "phone",            "label": "Phone Number",          "type": "tel"    },
+    { "id": "dateOfBirth",      "label": "Date of Birth",         "type": "date"   },
+    { "id": "aadhaar",          "label": "Aadhaar Number",        "type": "text"   },
+    { "id": "qualification",    "label": "Highest Qualification", "type": "select" },
+    { "id": "graduationYear",   "label": "Graduation Year",       "type": "number" },
+    { "id": "percentageOrCgpa", "label": "Percentage / CGPA",     "type": "score"  },
+    { "id": "score",            "label": "Screening Test Score",  "type": "number" },
+    { "id": "interviewStatus",  "label": "Interview Status",      "type": "select" },
+    { "id": "offerLetterSent",  "label": "Offer Letter Sent",     "type": "toggle" }
+  ]
+}
