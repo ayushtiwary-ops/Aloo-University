@@ -24,6 +24,16 @@
     },
 
     {
+      "field": "email",
+      "ruleType": "strict",
+      "validationType": "emailUniqueness",
+      "parameters": {
+        "registryKey": "admitguard_registered_emails"
+      },
+      "errorMessage": "This email address has already been registered in the system."
+    },
+
+    {
       "field": "phone",
       "ruleType": "strict",
       "validationType": "indianMobile",
@@ -86,7 +96,7 @@
         "minYear": 1980,
         "maxYearOffset": 0
       },
-      "_paramNote": "maxYearOffset: 0 means current calendar year. ValidationEngine resolves this at runtime.",
+      "_paramNote": "maxYearOffset 0 = current calendar year; resolved at runtime.",
       "errorMessage": "Graduation year must be between 1980 and the current year."
     },
 
@@ -97,7 +107,6 @@
       "parameters": {
         "recentYearsThreshold": 0
       },
-      "_paramNote": "recentYearsThreshold: 0 means current year. Flags candidates graduating this year for document verification.",
       "errorMessage": "Candidate graduated in the current year. Original mark sheet verification is required before proceeding.",
       "exceptionAllowed": true,
       "rationaleKeywords": ["final year", "awaiting result", "provisional", "degree in progress"]
@@ -112,7 +121,6 @@
         "cgpa":       { "min": 0, "max": 10  }
       },
       "dependencies": ["gradingMode"],
-      "_paramNote": "ValidationEngine reads gradingMode field to select the correct parameter set.",
       "errorMessage": "Enter a valid score. Percentage must be 0–100; CGPA must be 0–10."
     },
 
@@ -161,6 +169,16 @@
         "allowedValues": ["cleared", "waitlisted", "rejected"]
       },
       "errorMessage": "Interview status must be Cleared, Waitlisted, or Rejected."
+    },
+
+    {
+      "field": "interviewStatus",
+      "ruleType": "system",
+      "validationType": "blocksSubmissionWhenValue",
+      "parameters": {
+        "blockedValues": ["rejected"]
+      },
+      "errorMessage": "This application cannot be submitted. The candidate's interview result is Rejected."
     },
 
     {

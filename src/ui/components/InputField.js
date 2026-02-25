@@ -3,30 +3,19 @@ import { FormStateManager } from '../../state/FormStateManager.js';
 /**
  * InputField
  *
- * Reusable, self-contained field component. Constructs its own DOM,
- * wires input events to FormStateManager.setField(), and subscribes
- * to state changes to reflect updated values in the DOM.
+ * Self-contained field component. Builds its own DOM, wires input events
+ * to FormStateManager.setField(), and subscribes to (values, meta) state
+ * changes to update its own validation indicator, border, and message.
  *
- * Rendering strategy — Controlled component re-binding:
+ * Rendering strategy — controlled re-binding (unchanged from phase 2):
+ *   Only this field's own DOM nodes are touched on each state update.
+ *   No sibling components are affected, no cursor position is disrupted.
  *
- *   On every input event, the component writes the new value to
- *   FormStateManager. FormStateManager notifies all subscribers with a
- *   fresh state snapshot. This component's subscriber callback reads
- *   only its own field from that snapshot and updates its control value
- *   and message node — no other part of the UI is touched.
- *
- *   Why not full page re-render?
- *   Re-mounting the entire component tree on every keystroke would reset
- *   focus, cursor position, and scroll state. Controlled re-binding gives
- *   the same predictable state flow with surgical DOM updates only.
- *
- *   Why not a reactive proxy (e.g. Proxy/Reflect)?
- *   Proxy-based reactivity adds invisible complexity and makes debugging
- *   harder. An explicit subscriber call is readable, debuggable, and
- *   sufficient for this scale.
- *
- * Supports field types:
- *   'text' | 'email' | 'tel' | 'date' | 'number' | 'select' | 'score' | 'toggle'
+ * Phase 3 additions:
+ *   - Reads strictValid / strictErrorMessage from the meta argument
+ *   - Sets .field--valid / .field--invalid CSS modifier on wrapper
+ *   - Populates .field__message with the error text
+ *   - Adds .field__message--error class on error state
  *
  * @param {{
  *   id:           string,
@@ -45,7 +34,7 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
   // ── Label + indicator ──────────────────────────────────────
   const labelEl = document.createElement('label');
   labelEl.className = 'field__label';
-  labelEl.setAttribute('for', _controlId(id, type));
+  labelEl.setAttribute('for', id);
 
   const indicator = document.createElement('span');
   indicator.className = 'field__indicator';
@@ -55,7 +44,7 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
   labelEl.appendChild(document.createTextNode(label));
   wrapper.appendChild(labelEl);
 
-  // ── Control (varies by type) ───────────────────────────────
+  // ── Control ────────────────────────────────────────────────
   const control = _buildControl(id, type, placeholder, options);
   wrapper.appendChild(control);
 
@@ -64,46 +53,44 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
   messageEl.className = 'field__message';
   messageEl.id = `${id}-message`;
   messageEl.setAttribute('aria-live', 'polite');
+  messageEl.setAttribute('role', 'alert');
   wrapper.appendChild(messageEl);
 
-  // Link primary control to message for screen readers
-  const primaryControl = wrapper.querySelector(`#${_controlId(id, type)}`);
+  const primaryControl = wrapper.querySelector(`#${id}`);
   if (primaryControl) {
     primaryControl.setAttribute('aria-describedby', `${id}-message`);
   }
 
-  // ── Subscribe: update message when state changes ───────────
-  // Returns an unsubscribe function — callers can invoke it to
-  // prevent memory leaks when components are unmounted.
-  const unsubscribe = FormStateManager.subscribe((state) => {
-    messageEl.textContent = state[id] !== undefined
-      ? '' // message populated by ValidationEngine in phase 2
-      : '';
+  // ── Subscribe to state changes ─────────────────────────────
+  const unsubscribe = FormStateManager.subscribe((values, meta) => {
+    const fieldMeta = meta?.[id];
+    if (!fieldMeta) return;
+
+    const { strictValid, strictErrorMessage } = fieldMeta;
+
+    // Update validation CSS modifier
+    wrapper.classList.remove('field--valid', 'field--invalid');
+    if (strictValid === true)  wrapper.classList.add('field--valid');
+    if (strictValid === false) wrapper.classList.add('field--invalid');
+
+    // Update message text + style
+    if (strictValid === false && strictErrorMessage) {
+      messageEl.textContent = strictErrorMessage;
+      messageEl.classList.add('field__message--error');
+    } else {
+      messageEl.textContent = '';
+      messageEl.classList.remove('field__message--error');
+    }
   });
 
-  // Expose unsubscribe on the element so App can clean up
+  // Expose unsubscribe for cleanup
   wrapper._unsubscribe = unsubscribe;
 
   return wrapper;
 }
 
-// ── Private builders ───────────────────────────────────────────
+// ── Private builders ───────────────────────────────────────────────────────
 
-/**
- * Returns the correct `id` attribute for the primary focusable control
- * inside a field. Score and toggle fields contain multiple controls,
- * so the primary one carries the field id directly.
- * @param {string} id
- * @param {string} type
- * @returns {string}
- */
-function _controlId(id, type) {
-  return id;
-}
-
-/**
- * Dispatches to the appropriate control builder.
- */
 function _buildControl(id, type, placeholder, options) {
   switch (type) {
     case 'select': return _buildSelect(id, placeholder, options);
@@ -121,11 +108,7 @@ function _buildInput(id, type, placeholder) {
   input.type = type;
   input.placeholder = placeholder;
   input.autocomplete = 'off';
-
-  input.addEventListener('input', (e) => {
-    FormStateManager.setField(id, e.target.value);
-  });
-
+  input.addEventListener('input', (e) => FormStateManager.setField(id, e.target.value));
   return input;
 }
 
@@ -149,17 +132,10 @@ function _buildSelect(id, placeholder, options) {
     select.appendChild(opt);
   });
 
-  select.addEventListener('change', (e) => {
-    FormStateManager.setField(id, e.target.value);
-  });
-
+  select.addEventListener('change', (e) => FormStateManager.setField(id, e.target.value));
   return select;
 }
 
-/**
- * Score field: numeric input alongside a Percentage / CGPA toggle.
- * The numeric value updates `percentageOrCgpa`; the toggle updates `gradingMode`.
- */
 function _buildScore(id) {
   const row = document.createElement('div');
   row.className = 'field__score-row';
@@ -170,9 +146,7 @@ function _buildScore(id) {
   input.name = id;
   input.type = 'number';
   input.placeholder = 'Enter value';
-  input.addEventListener('input', (e) => {
-    FormStateManager.setField(id, e.target.value);
-  });
+  input.addEventListener('input', (e) => FormStateManager.setField(id, e.target.value));
 
   const toggleGroup = _buildToggleButtons({
     groupLabel: 'Score type',
@@ -189,9 +163,6 @@ function _buildScore(id) {
   return row;
 }
 
-/**
- * Yes / No toggle for boolean fields (e.g. offerLetterSent).
- */
 function _buildToggle(id) {
   return _buildToggleButtons({
     groupLabel: id,
@@ -204,17 +175,6 @@ function _buildToggle(id) {
   });
 }
 
-/**
- * Generic toggle button group.
- *
- * @param {{
- *   groupLabel:   string,
- *   options:      Array<{ value: string, label: string }>,
- *   initialValue: string|null,
- *   onChange:     function
- * }} config
- * @returns {HTMLElement}
- */
 function _buildToggleButtons({ groupLabel, options, initialValue, onChange }) {
   const group = document.createElement('div');
   group.className = 'field__toggle-group';
@@ -230,7 +190,6 @@ function _buildToggleButtons({ groupLabel, options, initialValue, onChange }) {
     btn.setAttribute('aria-pressed', String(value === initialValue));
 
     btn.addEventListener('click', () => {
-      // Update aria-pressed on all siblings
       group.querySelectorAll('.field__toggle-option').forEach((b) => {
         b.setAttribute('aria-pressed', String(b === btn));
       });

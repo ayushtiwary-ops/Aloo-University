@@ -1,23 +1,20 @@
 {
-  "_version": "1.0.0",
-  "_description": "Defines the required structure of every rule object in rules.json. ConfigLoader validates each rule against this schema at startup. ValidationEngine never reads this file.",
+  "_version": "1.1.0",
+  "_description": "Structural contract for every rule object in rules.json. ConfigLoader validates each rule against this schema at startup.",
 
   "rule": {
     "required": ["field", "ruleType", "validationType", "errorMessage"],
-
     "allowedRuleTypes": ["strict", "soft", "system"],
-
     "properties": {
-      "field":           { "type": "string",  "minLength": 1 },
-      "ruleType":        { "type": "string",  "enum": ["strict", "soft", "system"] },
-      "validationType":  { "type": "string",  "minLength": 1 },
-      "parameters":      { "type": "object"  },
-      "errorMessage":    { "type": "string",  "minLength": 1 },
-      "exceptionAllowed":{ "type": "boolean" },
-      "rationaleKeywords":{ "type": "array", "items": { "type": "string" } },
-      "dependencies":    { "type": "array",  "items": { "type": "string" } }
+      "field":            { "type": "string",  "minLength": 1 },
+      "ruleType":         { "type": "string",  "enum": ["strict", "soft", "system"] },
+      "validationType":   { "type": "string",  "minLength": 1 },
+      "parameters":       { "type": "object"  },
+      "errorMessage":     { "type": "string",  "minLength": 1 },
+      "exceptionAllowed": { "type": "boolean" },
+      "rationaleKeywords":{ "type": "array",  "items": { "type": "string" } },
+      "dependencies":     { "type": "array",  "items": { "type": "string" } }
     },
-
     "conditionalRequired": {
       "whenRuleType": "soft",
       "thenRequired": ["exceptionAllowed"]
@@ -25,23 +22,15 @@
   },
 
   "knownFields": [
-    "fullName",
-    "email",
-    "phone",
-    "dateOfBirth",
-    "aadhaar",
-    "qualification",
-    "graduationYear",
-    "percentageOrCgpa",
-    "gradingMode",
-    "score",
-    "interviewStatus",
-    "offerLetterSent"
+    "fullName", "email", "phone", "dateOfBirth", "aadhaar",
+    "qualification", "graduationYear", "percentageOrCgpa", "gradingMode",
+    "score", "interviewStatus", "offerLetterSent"
   ],
 
   "knownValidationTypes": [
     "minLengthNoNumbers",
     "emailFormat",
+    "emailUniqueness",
     "indianMobile",
     "ageRange",
     "ageRangeExtended",
@@ -53,6 +42,7 @@
     "minimumAcademicThreshold",
     "integerRange",
     "minimumScreeningThreshold",
+    "blocksSubmissionWhenValue",
     "blocksFieldWhenValue",
     "dependsOnFieldValue"
   ]

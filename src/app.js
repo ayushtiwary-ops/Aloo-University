@@ -1,23 +1,31 @@
-import { FormCard }     from './ui/components/FormCard.js';
-import { InputField }   from './ui/components/InputField.js';
-import { SubmitButton } from './ui/components/SubmitButton.js';
+import { FormCard }        from './ui/components/FormCard.js';
+import { InputField }      from './ui/components/InputField.js';
+import { SubmitButton }    from './ui/components/SubmitButton.js';
+import { RejectionBanner } from './ui/components/RejectionBanner.js';
 
 /**
  * App
  *
- * Composes the three admission form sections and all 11 candidate fields.
- * Returns the root content node — zero business logic here.
+ * Composes the three admission form sections, all 11 candidate fields,
+ * the rejection banner, and the submit button.
+ * Zero business logic here.
  *
- * State flow:
- *   User types → InputField dispatches → FormStateManager.setField()
- *   → FormStateManager notifies subscribers → InputField updates message node
- *   → SubmitButton reads isReady (always false in phase 1)
+ * State flow (phase 3):
+ *   User input → InputField → FormStateManager.setField()
+ *   → ValidationEngine.validateField() + cascade re-validation
+ *   → FormStateManager notifies subscribers with (values, meta)
+ *   → InputField updates its own indicator + message
+ *   → RejectionBanner shows/hides based on interviewStatus meta
+ *   → SubmitButton enables/disables based on isSubmittable()
  *
  * @returns {HTMLElement}
  */
 export function App() {
   const stack = document.createElement('div');
   stack.className = 'form-stack';
+
+  // Rejection banner — appears above the form when interview is rejected
+  stack.appendChild(RejectionBanner());
 
   // ── Section 1 — Candidate Identity ────────────────────────
   stack.appendChild(FormCard({
@@ -68,12 +76,12 @@ export function App() {
         type:        'select',
         placeholder: 'Select qualification',
         options: [
-          { value: 'ssc',       label: 'SSC (10th)'          },
-          { value: 'hsc',       label: 'HSC (12th)'          },
-          { value: 'diploma',   label: 'Diploma'             },
-          { value: 'bachelors', label: "Bachelor's Degree"   },
-          { value: 'masters',   label: "Master's Degree"     },
-          { value: 'phd',       label: 'PhD / Doctorate'     },
+          { value: 'ssc',       label: 'SSC (10th)'        },
+          { value: 'hsc',       label: 'HSC (12th)'        },
+          { value: 'diploma',   label: 'Diploma'           },
+          { value: 'bachelors', label: "Bachelor's Degree" },
+          { value: 'masters',   label: "Master's Degree"   },
+          { value: 'phd',       label: 'PhD / Doctorate'   },
         ],
       }),
       InputField({
