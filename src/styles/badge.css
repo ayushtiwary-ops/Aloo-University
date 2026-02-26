@@ -69,3 +69,7 @@
   background-color: #200D0D;
   border-color: #5C2A2A;
 }
+[data-theme="dark"] .compliance-badge--amber {
+  background-color: #261608;
+  border-color: var(--color-accent);
+}

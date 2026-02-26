@@ -45,6 +45,6 @@ export function ComplianceStatusBadge() {
     `;
   }
 
-  FormStateManager.subscribe(_render);
+  wrap._unsubscribe = FormStateManager.subscribe(_render);
   return wrap;
 }
