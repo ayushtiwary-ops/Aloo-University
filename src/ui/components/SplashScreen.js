@@ -19,7 +19,7 @@ export function SplashScreen({ onComplete }) {
   el.setAttribute('aria-hidden', 'true');
 
   el.innerHTML = `
-    <div class="splash__logo">A</div>
+    <div class="splash__logo">🥔</div>
     <div class="splash__text">
       <p class="splash__title">ALOO University</p>
       <div class="splash__underline-wrap">

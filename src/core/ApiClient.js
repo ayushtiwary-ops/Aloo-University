@@ -64,4 +64,12 @@ export const ApiClient = {
   async candidateLogin(email, password) {
     return request('POST', '/api/candidate/login', { email, password });
   },
+
+  async getCandidateProfile() {
+    return request('GET', '/api/candidate/me');
+  },
+
+  async getCandidateApplication() {
+    return request('GET', '/api/candidate/me/application');
+  },
 };

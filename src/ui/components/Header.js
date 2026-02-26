@@ -49,7 +49,7 @@ export function Header({ onLogout } = {}) {
       </svg>
     </div>
     <div class="site-header__brand">
-      <span class="site-header__university">ALOO University</span>
+      <span class="site-header__university">🥔 ALOO University</span>
       <span class="site-header__system">AdmitGuard — Admission Compliance System</span>
     </div>
   `;

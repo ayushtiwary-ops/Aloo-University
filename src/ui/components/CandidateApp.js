@@ -1,4 +1,6 @@
-import { AuthService } from '../../core/AuthService.js';
+import { AuthService }        from '../../core/AuthService.js';
+import { MyProfile }           from './MyProfile.js';
+import { CandidateDashboard }  from './CandidateDashboard.js';
 
 /**
  * CandidateApp
@@ -95,31 +97,7 @@ export function CandidateApp() {
   profilePanel.id = 'cv-profile';
   profilePanel.setAttribute('role', 'tabpanel');
 
-  const profileCard = document.createElement('div');
-  profileCard.className = 'candidate-profile-card';
-
-  const profileTitle = document.createElement('h2');
-  profileTitle.className = 'candidate-section-title';
-  profileTitle.textContent = 'My Profile';
-  profileCard.appendChild(profileTitle);
-
-  function _row(label, value) {
-    const row = document.createElement('div');
-    row.className = 'candidate-profile-row';
-    const lbl = document.createElement('span');
-    lbl.className = 'candidate-profile-label';
-    lbl.textContent = label;
-    const val = document.createElement('span');
-    val.className = 'candidate-profile-value';
-    val.textContent = value || '—';
-    row.appendChild(lbl);
-    row.appendChild(val);
-    return row;
-  }
-
-  profileCard.appendChild(_row('Name',  user?.name  ?? user?.full_name ?? '—'));
-  profileCard.appendChild(_row('Email', user?.email ?? '—'));
-  profilePanel.appendChild(profileCard);
+  profilePanel.appendChild(MyProfile());
 
   // Application panel (placeholder)
   const appPanel = document.createElement('div');
@@ -128,20 +106,7 @@ export function CandidateApp() {
   appPanel.setAttribute('role', 'tabpanel');
   appPanel.hidden = true;
 
-  const appCard = document.createElement('div');
-  appCard.className = 'candidate-profile-card candidate-empty-state';
-
-  const appTitle = document.createElement('h2');
-  appTitle.className = 'candidate-section-title';
-  appTitle.textContent = 'My Application';
-
-  const appMsg = document.createElement('p');
-  appMsg.className = 'candidate-empty-msg';
-  appMsg.textContent = 'Your application will appear here once submitted.';
-
-  appCard.appendChild(appTitle);
-  appCard.appendChild(appMsg);
-  appPanel.appendChild(appCard);
+  appPanel.appendChild(CandidateDashboard());
 
   container.appendChild(profilePanel);
   container.appendChild(appPanel);

@@ -22,7 +22,7 @@ export function LoginView({ onSuccess }) {
   view.innerHTML = `
     <div class="login-card">
       <div class="login-card__brand">
-        <div class="login-card__logo" aria-hidden="true">A</div>
+        <div class="login-card__logo" aria-hidden="true">🥔</div>
         <h1 class="login-card__title">ALOO University</h1>
         <p class="login-card__subtitle">Admission Compliance System</p>
       </div>

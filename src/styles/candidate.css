@@ -241,3 +241,66 @@
   font-size: var(--text-body);
   color: var(--color-text-muted);
 }
+
+/* ── Candidate dashboard badges ──────────────────────────────── */
+
+.cand-badge-row {
+  padding: var(--space-3) 0;
+}
+
+.cand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.cand-badge--compliant {
+  background-color: rgba(61, 97, 66, 0.12);
+  color: var(--color-green-accent);
+  border: 1px solid rgba(61, 97, 66, 0.25);
+}
+
+.cand-badge--exceptions {
+  background-color: var(--color-warning-subtle);
+  color: var(--color-warning);
+  border: 1px solid rgba(160, 106, 10, 0.3);
+}
+
+.cand-badge--flagged {
+  background-color: rgba(139, 46, 46, 0.1);
+  color: var(--color-error);
+  border: 1px solid rgba(139, 46, 46, 0.25);
+}
+
+.cand-exception-list {
+  list-style: disc;
+  padding-left: var(--space-4);
+  margin-top: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.candidate-profile-row--col {
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cand-flag-notice {
+  background-color: rgba(139, 46, 46, 0.08);
+  border: 1px solid rgba(139, 46, 46, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--color-error);
+  margin-top: var(--space-2);
+}
