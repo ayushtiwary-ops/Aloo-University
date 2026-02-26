@@ -73,6 +73,7 @@ describe('SubmissionController', () => {
   beforeEach(() => {
     mockAuditService = {
       generateId: vi.fn(() => 'audit-001'),
+      nextId:     vi.fn(() => 'AG-2026-0001'),
       save:       vi.fn((r) => r),
     };
     mockShowModal = vi.fn();
