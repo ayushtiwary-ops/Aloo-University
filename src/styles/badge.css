@@ -1,0 +1,71 @@
+/* ── Compliance Status Badge ────────────────────────────────── */
+
+.compliance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 20px;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: background-color var(--transition-base),
+              color var(--transition-base),
+              border-color var(--transition-base);
+  border: 1px solid transparent;
+}
+
+.compliance-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Green — compliant */
+.compliance-badge--green {
+  background-color: #EBF5EC;
+  color: var(--color-green-accent);
+  border-color: #B8DDB9;
+}
+.compliance-badge--green .compliance-badge__dot {
+  background-color: var(--color-green-accent);
+}
+
+/* Amber — soft review */
+.compliance-badge--amber {
+  background-color: var(--color-warning-subtle);
+  color: var(--color-warning);
+  border-color: var(--color-accent);
+}
+.compliance-badge--amber .compliance-badge__dot {
+  background-color: var(--color-accent);
+}
+
+/* Red — flagged */
+.compliance-badge--red {
+  background-color: #fdf2f2;
+  color: var(--color-error);
+  border-color: #e8c2c2;
+}
+.compliance-badge--red .compliance-badge__dot {
+  background-color: var(--color-error);
+}
+
+/* Wrapper — right-aligns badge below submit button */
+.compliance-badge-wrap {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) 0 0;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .compliance-badge--green {
+  background-color: #0D200F;
+  border-color: #2A5C2E;
+}
+[data-theme="dark"] .compliance-badge--red {
+  background-color: #200D0D;
+  border-color: #5C2A2A;
+}
