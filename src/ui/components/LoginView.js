@@ -52,7 +52,7 @@ export function LoginView({ onSuccess }) {
         </label>
       </div>
 
-      <p class="login-card__error" role="alert" aria-live="polite" id="login-error"></p>
+      <p class="login-card__error" aria-live="polite" id="login-error"></p>
 
       <button class="login-card__submit" type="button" id="login-submit">
         Sign In
