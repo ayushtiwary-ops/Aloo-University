@@ -65,11 +65,31 @@ export function BackendAnalyticsView() {
       grid.className = 'dash-grid';
       grid.setAttribute('role', 'list');
 
-      grid.appendChild(_metric('Total Submissions', data.total,         '',  'All-time recorded',   ''));
-      grid.appendChild(_metric('Exception Rate',    data.exceptionRate, '%', 'With ≥1 exception',   data.exceptionRate >= 50 ? 'warning' : ''));
-      grid.appendChild(_metric('Flagged Rate',      data.flaggedRate,   '%', 'Sent for review',     data.flaggedRate > 0 ? 'alert' : ''));
+      grid.appendChild(_metric('Total Submissions', data.total,            '',  'All-time recorded',        ''));
+      grid.appendChild(_metric('Strict Pass Rate',  data.strictPassRate,   '%', 'Hard rules compliant',     data.strictPassRate < 80 ? 'alert' : ''));
+      grid.appendChild(_metric('Soft-Rule Rate',    data.softRate,         '%', 'With ≥1 exception',        data.softRate >= 50 ? 'warning' : ''));
+      grid.appendChild(_metric('Flagged Rate',      data.flaggedRate,      '%', 'Sent for review',          data.flaggedRate > 0 ? 'alert' : ''));
       grid.appendChild(_metric('Avg Exceptions',    (data.avgExceptions ?? 0).toFixed(1), '', 'Per candidate', ''));
       host.appendChild(grid);
+
+      if (data.tierDistribution) {
+        const td = data.tierDistribution;
+        const tierSection = document.createElement('div');
+        tierSection.className = 'dash-recent';
+        const tierTitle = document.createElement('h3');
+        tierTitle.className = 'dash-recent__title';
+        tierTitle.textContent = 'Tier Distribution';
+        tierSection.appendChild(tierTitle);
+
+        const tierGrid = document.createElement('div');
+        tierGrid.className = 'dash-grid';
+        tierGrid.setAttribute('role', 'list');
+        tierGrid.appendChild(_metric('Clean',   td.clean,   '', 'No exceptions',       ''));
+        tierGrid.appendChild(_metric('Soft',    td.soft,    '', 'With exceptions',      'warning'));
+        tierGrid.appendChild(_metric('Flagged', td.flagged, '', 'Under review',         'alert'));
+        tierSection.appendChild(tierGrid);
+        host.appendChild(tierSection);
+      }
 
       if (data.recentRecords?.length) {
         const section = document.createElement('div');
@@ -93,11 +113,11 @@ export function BackendAnalyticsView() {
         const tbody = document.createElement('tbody');
         data.recentRecords.forEach((rec) => {
           const tr = document.createElement('tr');
-          const name = rec.candidate_data?.fullName || rec.candidate_data?.full_name || '—';
+          const name = rec.candidate_name || '—';
           const exc  = rec.exception_count ?? 0;
           tr.innerHTML = `
             <td class="dash-recent__td dash-recent__td--name">${name}</td>
-            <td class="dash-recent__td dash-recent__td--time">${_fmt(rec.created_at)}</td>
+            <td class="dash-recent__td dash-recent__td--time">${_fmt(rec.submitted_at)}</td>
             <td class="dash-recent__td dash-recent__td--center">
               ${exc > 0 ? `<span class="dash-recent__exc-badge">${exc}</span>` : '<span class="dash-recent__none">—</span>'}
             </td>

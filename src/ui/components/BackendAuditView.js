@@ -67,14 +67,14 @@ export function BackendAuditView() {
       const tbody = document.createElement('tbody');
 
       records.forEach((rec) => {
-        const name = rec.candidate_data?.fullName || rec.candidate_data?.full_name || '—';
+        const name = rec.candidate_name || '—';
         const exc  = rec.exception_count ?? 0;
         const flagged = rec.flagged ?? false;
         const tr = document.createElement('tr');
         tr.className = 'audit-table__row';
         tr.innerHTML = `
           <td class="audit-table__td audit-table__td--name">${name}</td>
-          <td class="audit-table__td audit-table__td--time">${_fmt(rec.created_at)}</td>
+          <td class="audit-table__td audit-table__td--time">${_fmt(rec.submitted_at)}</td>
           <td class="audit-table__td audit-table__td--center">
             ${exc > 0 ? `<span class="audit-table__exception-badge">${exc}</span>` : '<span class="audit-table__none">—</span>'}
           </td>

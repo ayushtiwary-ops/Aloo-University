@@ -57,22 +57,6 @@ export const ApiClient = {
     return request('GET', '/api/analytics');
   },
 
-  async candidateRegister(full_name, email, phone, password) {
-    return request('POST', '/api/candidate/register', { full_name, email, phone, password });
-  },
-
-  async candidateLogin(email, password) {
-    return request('POST', '/api/candidate/login', { email, password });
-  },
-
-  async getCandidateProfile() {
-    return request('GET', '/api/candidate/me');
-  },
-
-  async getCandidateApplication() {
-    return request('GET', '/api/candidate/me/application');
-  },
-
   async getCandidates() {
     return request('GET', '/api/candidates');
   },

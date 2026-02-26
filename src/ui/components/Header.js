@@ -27,7 +27,7 @@ const SUN_ICON = `
           stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`;
 
-export function Header({ onLogout } = {}) {
+export function Header({ onLogout, onStaffLogin } = {}) {
   const el = document.createElement('header');
   el.className = 'site-header';
   el.setAttribute('role', 'banner');
@@ -93,8 +93,17 @@ export function Header({ onLogout } = {}) {
     logoutBtn.setAttribute('aria-label', 'Log out of AdmitGuard');
     logoutBtn.addEventListener('click', onLogout);
     userArea.appendChild(logoutBtn);
-
     el.appendChild(userArea);
+
+  } else if (onStaffLogin) {
+    const staffBtn = document.createElement('button');
+    staffBtn.type = 'button';
+    staffBtn.className = 'logout-btn';   // reuse styling
+    staffBtn.textContent = 'Staff Login';
+    staffBtn.setAttribute('aria-label', 'Staff login');
+    staffBtn.style.marginLeft = 'auto';
+    staffBtn.addEventListener('click', onStaffLogin);
+    el.appendChild(staffBtn);
   }
 
   return el;
