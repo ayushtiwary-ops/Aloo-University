@@ -277,3 +277,75 @@
   color: #6b3030;
   line-height: 1.5;
 }
+
+/* ── Exception override area ─────────────────────────────────────────── */
+
+.field__exception-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.field__exception-toggle {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--color-warning);
+  background-color: transparent;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.field__exception-toggle:hover {
+  background-color: var(--color-warning-subtle);
+}
+
+.field__exception-toggle--active {
+  background-color: var(--color-warning-subtle);
+  font-weight: 600;
+}
+
+.field__rationale-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field__rationale {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  min-height: 72px;
+  outline: none;
+  transition: box-shadow var(--transition-fast);
+}
+
+.field__rationale:focus {
+  box-shadow: var(--shadow-focus);
+}
+
+.field__rationale-msg {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+  min-height: 16px;
+}
+
+.field__rationale-msg--hint {
+  color: var(--color-warning);
+}
+
+.field__rationale-msg--ok {
+  color: var(--color-green-accent);
+}

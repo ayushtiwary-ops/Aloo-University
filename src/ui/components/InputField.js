@@ -57,19 +57,57 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
     primaryControl.setAttribute('aria-describedby', `${id}-message`);
   }
 
-  // ── Soft-violation helper text (amber, no interaction) ─────────────────
-  const softHelper = document.createElement('p');
-  softHelper.className = 'field__message field__message--warning';
-  softHelper.setAttribute('aria-live', 'polite');
-  softHelper.hidden = true;
-  wrapper.appendChild(softHelper);
+  // ── Exception override area ────────────────────────────────────────────
+  const exceptionArea = document.createElement('div');
+  exceptionArea.className = 'field__exception-area';
+  exceptionArea.hidden = true;
+
+  const exceptionToggle = document.createElement('button');
+  exceptionToggle.type = 'button';
+  exceptionToggle.className = 'field__exception-toggle';
+  exceptionToggle.setAttribute('aria-pressed', 'false');
+  exceptionToggle.textContent = 'Request Exception';
+  exceptionArea.appendChild(exceptionToggle);
+
+  const rationaleArea = document.createElement('div');
+  rationaleArea.className = 'field__rationale-area';
+  rationaleArea.hidden = true;
+
+  const rationaleInput = document.createElement('textarea');
+  rationaleInput.className = 'field__rationale';
+  rationaleInput.rows = 3;
+  rationaleInput.placeholder = 'Provide justification (e.g. "Approved by director — special case")';
+  rationaleInput.setAttribute('aria-label', `Exception rationale for ${label}`);
+  rationaleArea.appendChild(rationaleInput);
+
+  const rationaleMsgEl = document.createElement('p');
+  rationaleMsgEl.className = 'field__rationale-msg field__rationale-msg--hint';
+  rationaleMsgEl.setAttribute('aria-live', 'polite');
+  rationaleArea.appendChild(rationaleMsgEl);
+
+  exceptionArea.appendChild(rationaleArea);
+  wrapper.appendChild(exceptionArea);
+
+  // Wire toggle
+  exceptionToggle.addEventListener('click', () => {
+    const on = exceptionToggle.getAttribute('aria-pressed') !== 'true';
+    FormStateManager.setFieldException(id, on, rationaleInput.value);
+  });
+
+  // Wire textarea — update on every keystroke
+  rationaleInput.addEventListener('input', () => {
+    const on = exceptionToggle.getAttribute('aria-pressed') === 'true';
+    FormStateManager.setFieldException(id, on, rationaleInput.value);
+  });
 
   // ── Subscribe to state changes ─────────────────────────────────────────
   const unsubscribe = FormStateManager.subscribe((values, meta) => {
     const fieldMeta = meta?.[id];
     if (!fieldMeta) return;
 
-    const { strictValid, strictErrorMessage, softValid } = fieldMeta;
+    const { strictValid, strictErrorMessage, softValid,
+            exceptionRequested, rationaleValid, rationaleKeywords,
+            rationaleMinLength } = fieldMeta;
 
     // Wrapper class (priority: strict > soft > valid)
     wrapper.classList.remove('field--valid', 'field--invalid', 'field--warning');
@@ -90,12 +128,37 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
       messageEl.classList.remove('field__message--error');
     }
 
-    // Soft helper text
+    // Exception toggle area — only shown when soft violation is active
     const hasSoftViolation = softValid === false;
-    softHelper.hidden = !hasSoftViolation;
-    softHelper.textContent = hasSoftViolation
-      ? 'Below recommended threshold. Submission allowed but will be reviewed.'
-      : '';
+    exceptionArea.hidden = !hasSoftViolation;
+    if (!hasSoftViolation) {
+      exceptionToggle.setAttribute('aria-pressed', 'false');
+      rationaleArea.hidden = true;
+      rationaleInput.value = '';
+      rationaleMsgEl.textContent = '';
+    } else {
+      exceptionToggle.setAttribute('aria-pressed', String(exceptionRequested));
+      exceptionToggle.classList.toggle('field__exception-toggle--active', exceptionRequested);
+      rationaleArea.hidden = !exceptionRequested;
+      if (exceptionRequested) {
+        // Update hint
+        const len  = rationaleInput.value.trim().length;
+        const kwds = rationaleKeywords ?? [];
+        const lower = rationaleInput.value.toLowerCase();
+        const hasKeyword = kwds.some((k) => lower.includes(k.toLowerCase()));
+        const lenOk = len >= (rationaleMinLength ?? 30);
+        if (rationaleValid) {
+          rationaleMsgEl.textContent = '✓ Rationale accepted.';
+          rationaleMsgEl.className = 'field__rationale-msg field__rationale-msg--ok';
+        } else {
+          const parts = [];
+          if (!lenOk)     parts.push(`${len}/${rationaleMinLength ?? 30} chars`);
+          if (!hasKeyword && kwds.length) parts.push(`keyword required: ${kwds.slice(0, 2).join(', ')}…`);
+          rationaleMsgEl.textContent = parts.join(' · ');
+          rationaleMsgEl.className = 'field__rationale-msg field__rationale-msg--hint';
+        }
+      }
+    }
   });
 
   wrapper._unsubscribe = unsubscribe;
