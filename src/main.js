@@ -39,6 +39,7 @@ async function init() {
   ThemeService.init();
 
   const appRoot = document.getElementById('app');
+  if (!appRoot) throw new Error('[AdmitGuard] #app root element not found in DOM.');
 
   // Splash screen (always shown on first load)
   await new Promise((resolve) => {
@@ -54,10 +55,12 @@ async function init() {
   await mountApp(appRoot);
 
   // Handle token expiry or logout without a page reload
-  document.addEventListener('auth:unauthorized', async () => {
-    appRoot.innerHTML = '';
-    await mountLogin(appRoot);
-    await mountApp(appRoot);
+  document.addEventListener('auth:unauthorized', () => {
+    (async () => {
+      appRoot.innerHTML = '';
+      await mountLogin(appRoot);
+      await mountApp(appRoot);
+    })().catch((err) => console.error('[AdmitGuard] Re-auth failed:', err));
   }, { once: false });
 }
 
