@@ -46,7 +46,10 @@ export function SubmitButton() {
       snapshot: FormStateManager.getState(),
     });
 
-    const result = await SubmissionController.submit(FormStateManager.getState());
+    const result = await SubmissionController.submit(
+      FormStateManager.getState(),
+      FormStateManager.getMeta()
+    );
 
     AuditService.record(
       result.success ? 'FORM_SUBMIT_SUCCESS' : 'FORM_SUBMIT_FAILED',

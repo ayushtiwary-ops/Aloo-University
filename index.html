@@ -21,6 +21,19 @@
     <link rel="stylesheet" href="/src/styles/card.css" />
     <link rel="stylesheet" href="/src/styles/input.css" />
     <link rel="stylesheet" href="/src/styles/button.css" />
+    <link rel="stylesheet" href="/src/styles/audit.css" />
+    <link rel="stylesheet" href="/src/styles/dashboard.css" />
+
+    <!-- Apply saved theme before first paint to prevent flash of wrong theme -->
+    <script>
+      (function () {
+        var saved = localStorage.getItem('aloo_admitguard_theme');
+        var osPref = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark' : 'light';
+        document.documentElement.dataset.theme = (saved === 'light' || saved === 'dark')
+          ? saved : osPref;
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -201,6 +201,18 @@ export function createFormStateManager(options = {}) {
     },
 
     /**
+     * Returns an immutable snapshot of the full meta map for all fields.
+     * Used by SubmissionController to build the audit record.
+     *
+     * @returns {object}
+     */
+    getMeta() {
+      return Object.fromEntries(
+        Object.entries(_meta).map(([k, m]) => [k, { ...m }])
+      );
+    },
+
+    /**
      * Updates a field's value, runs strict + soft validation, cascades to
      * dependent fields, and notifies all subscribers.
      *

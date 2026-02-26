@@ -51,3 +51,35 @@
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
 }
+
+/* ── Dark mode — deep roasted earth palette ───────────────────
+   Applied when <html data-theme="dark"> is set by ThemeService.
+   Only colour tokens are overridden; spacing, typography, and
+   radius tokens are unchanged.
+   ──────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  --color-primary:         #E8C49A;   /* warm cream — legible on dark bg */
+  --color-primary-light:   #F0D8B8;
+  --color-accent:          #C8922A;   /* keep brand amber */
+  --color-accent-subtle:   #2E1F08;   /* deep amber tint surface */
+
+  --color-bg-base:         #140D06;   /* almost-black roasted */
+  --color-bg-card:         #1E1309;   /* dark card surface */
+  --color-bg-section:      #261808;   /* slightly lighter panel */
+
+  --color-border:          #3A2410;   /* warm dark border */
+  --color-text-primary:    #F2EAE0;   /* warm off-white */
+  --color-text-secondary:  #B8A090;
+  --color-text-muted:      #7A6A5A;
+
+  --color-green-accent:    #7AC483;   /* lightened for contrast */
+  --color-error:           #E87878;   /* lightened for contrast */
+  --color-neutral-state:   #4A3A2A;
+  --color-warning:         #D4922A;   /* slightly lighter amber */
+  --color-warning-subtle:  #261608;   /* dark amber tint */
+
+  --shadow-card:  0 1px 4px rgba(0, 0, 0, 0.4),
+                  0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-focus: 0 0 0 3px rgba(200, 146, 42, 0.35);
+}
