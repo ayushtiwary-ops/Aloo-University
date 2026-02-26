@@ -149,25 +149,19 @@ export function createFormStateManager(options = {}) {
     // Store the current violating rule privately (or clear it)
     _softViolatedRules[fieldId] = softResult.isViolation ? softResult.rule : null;
 
-    // ── Exception state ───────────────────────────────────────────────────
-    // Carry forward any existing exception request only while a violation persists.
-    const prev = _meta[fieldId] ?? {};
-    let exceptionRequested = softResult.isViolation ? (prev.exceptionRequested ?? false) : false;
-    let rationale          = softResult.isViolation ? (prev.rationale ?? '')          : '';
-    let rationaleValid     = false;
-
-    if (softResult.isViolation && exceptionRequested && rationale) {
-      // Re-validate rationale against the (possibly updated) rule
-      rationaleValid = validateRationaleFn(rationale, softResult.rule).isValid;
-    }
+    // ── Exception state (engine-driven auto-grant) ────────────────────────
+    // Exceptions are no longer manually requested. When the engine detects a
+    // soft violation the exception is automatically approved so that:
+    //   - isFormEligibleForSubmission() stays unlocked (strict-only gate)
+    //   - computeExceptionCount() correctly reflects the violation count
+    //   - isFlagged() triggers at > 2 violations as before
+    const exceptionRequested = softResult.isViolation;
+    const rationale          = '';
+    const rationaleValid     = softResult.isViolation;
 
     // ── UI hints from the soft rule ───────────────────────────────────────
-    const rationaleKeywords  = softResult.isViolation
-      ? (softResult.rule?.rationaleKeywords ?? [])
-      : [];
-    const rationaleMinLength = softResult.isViolation
-      ? (softResult.rule?.parameters?.rationaleMinLength ?? 30)
-      : 30;
+    const rationaleKeywords  = [];
+    const rationaleMinLength = 30;
 
     _meta[fieldId] = {
       strictValid:        strictResult.isValid,
