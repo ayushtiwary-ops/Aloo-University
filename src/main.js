@@ -2,11 +2,11 @@ import { ConfigLoader }       from './core/ConfigLoader.js';
 import { FormStateManager }   from './state/FormStateManager.js';
 import { ThemeService }       from './core/ThemeService.js';
 import { AuthService }        from './core/AuthService.js';
-import { App }                from './app.js';
-import { RootLayout }         from './ui/layout/RootLayout.js';
 import { SplashScreen }       from './ui/components/SplashScreen.js';
 import { AuthLanding }        from './ui/components/AuthLanding.js';
 import { CandidateApp }       from './ui/components/CandidateApp.js';
+import { AdminApp }           from './ui/layout/AdminApp.js';
+import { CounselorApp }       from './ui/layout/CounselorApp.js';
 
 /**
  * Entry point.
@@ -41,8 +41,14 @@ async function _mountAdminApp(appRoot) {
   await ConfigLoader.load();
   FormStateManager.reset();
   FormStateManager.validateAll();
-  const role = AuthService.getRole();
-  appRoot.appendChild(RootLayout({ main: App(), role }));
+  appRoot.appendChild(AdminApp());
+}
+
+async function _mountCounselorApp(appRoot) {
+  await ConfigLoader.load();
+  FormStateManager.reset();
+  FormStateManager.validateAll();
+  appRoot.appendChild(CounselorApp());
 }
 
 function _mountCandidateApp(appRoot) {
@@ -54,8 +60,10 @@ async function _routeByRole(appRoot) {
   const role = AuthService.getRole();
   if (role === 'candidate') {
     _mountCandidateApp(appRoot);
-  } else {
+  } else if (role === 'admin') {
     await _mountAdminApp(appRoot);
+  } else {
+    await _mountCounselorApp(appRoot);
   }
 }
 

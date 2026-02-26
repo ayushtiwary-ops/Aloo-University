@@ -72,4 +72,8 @@ export const ApiClient = {
   async getCandidateApplication() {
     return request('GET', '/api/candidate/me/application');
   },
+
+  async getCandidates() {
+    return request('GET', '/api/candidates');
+  },
 };

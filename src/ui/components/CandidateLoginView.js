@@ -93,10 +93,30 @@ export function CandidateLoginView({ onSuccess, onBack }) {
   backBtn.textContent = '← Back';
   backBtn.addEventListener('click', onBack);
 
+  // — Demo button —
+  const demoBtn = document.createElement('button');
+  demoBtn.type = 'button';
+  demoBtn.className = 'auth-demo-btn';
+  demoBtn.textContent = '🥔 Use Demo Candidate';
+  demoBtn.addEventListener('click', async () => {
+    if (_loading) return;
+    errorEl.textContent = '';
+    _setLoading(true);
+    try {
+      const { token, user } = await ApiClient.candidateLogin('candidate@aloo.edu', 'Admin@123');
+      AuthService.setSession(token, user);
+      onSuccess();
+    } catch (err) {
+      errorEl.textContent = err.message ?? 'Demo login failed.';
+      _setLoading(false);
+    }
+  });
+
   card.appendChild(brand);
   card.appendChild(fields);
   card.appendChild(errorEl);
   card.appendChild(submitBtn);
+  card.appendChild(demoBtn);
   card.appendChild(backBtn);
   view.appendChild(card);
 
