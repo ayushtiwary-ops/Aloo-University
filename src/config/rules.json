@@ -61,11 +61,12 @@
       "validationType": "ageRangeExtended",
       "parameters": {
         "minAge": 36,
-        "maxAge": 40
+        "maxAge": 40,
+        "rationaleMinLength": 30
       },
       "errorMessage": "Candidate age is between 36 and 40. An exception with valid rationale is required to proceed.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["experience", "industry", "returning", "career change", "sponsored"]
+      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {
@@ -105,11 +106,12 @@
       "ruleType": "soft",
       "validationType": "recentGraduation",
       "parameters": {
-        "recentYearsThreshold": 0
+        "recentYearsThreshold": 0,
+        "rationaleMinLength": 30
       },
       "errorMessage": "Candidate graduated in the current year. Original mark sheet verification is required before proceeding.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["final year", "awaiting result", "provisional", "degree in progress"]
+      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {
@@ -130,12 +132,13 @@
       "validationType": "minimumAcademicThreshold",
       "parameters": {
         "percentageMinimum": 50,
-        "cgpaMinimum": 5.0
+        "cgpaMinimum": 5.0,
+        "rationaleMinLength": 30
       },
       "dependencies": ["gradingMode"],
       "errorMessage": "Academic score is below the recommended threshold (50% / 5.0 CGPA). An exception with rationale is required.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["relevant experience", "entrance score", "research", "portfolio", "exceptional"]
+      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {
@@ -154,11 +157,12 @@
       "ruleType": "soft",
       "validationType": "minimumScreeningThreshold",
       "parameters": {
-        "minimumPassingScore": 40
+        "minimumPassingScore": 40,
+        "rationaleMinLength": 30
       },
       "errorMessage": "Screening test score is below the minimum passing threshold of 40. An exception with rationale is required.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["interview performance", "strong profile", "recommendation", "exceptional background"]
+      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {

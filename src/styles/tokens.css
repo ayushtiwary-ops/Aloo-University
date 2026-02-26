@@ -14,6 +14,8 @@
   --color-green-accent:    #3D6142;
   --color-error:           #8B2E2E;
   --color-neutral-state:   #C4B8A8;
+  --color-warning:         #A06A0A;   /* amber text — accessible on white */
+  --color-warning-subtle:  #FDF5E4;   /* amber-tinted surface */
 
   /* ── Spacing — 8px scale ──────────────────────────────────── */
   --space-1:  4px;

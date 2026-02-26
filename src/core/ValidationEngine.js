@@ -32,6 +32,11 @@ import {
   isAllowedValue,
   isIntegerRange,
   isNumericRange,
+  isAgeInRange,
+  isGraduationYearRecent,
+  isAboveMinimumAcademic,
+  isAboveMinimumScore,
+  isValidRationale,
 } from '../utils/validators.js';
 
 // ── Rule type filter ──────────────────────────────────────────────────────
@@ -134,6 +139,53 @@ const VALIDATORS = {
   minimumScreeningThreshold: () => true,
 };
 
+// ── Soft validator dispatch map ───────────────────────────────────────────
+//
+// Keyed by validationType (soft rules only).
+// Each handler returns true when the VIOLATION CONDITION is present,
+// false when the value is acceptable or empty.
+
+const SOFT_VALIDATORS = {
+  /**
+   * Age is in the extended (amber) range [minAge, maxAge].
+   * The strict ageRange rule handles the hard block — this catches the
+   * amber zone above the normal range.
+   */
+  ageRangeExtended(value, params) {
+    return isAgeInRange(value, params.minAge, params.maxAge);
+  },
+
+  /**
+   * Graduation year is within recentYearsThreshold years of current year.
+   * A threshold of 0 means only the current calendar year triggers.
+   */
+  recentGraduation(value, params) {
+    return isGraduationYearRecent(value, params.recentYearsThreshold ?? 0);
+  },
+
+  /**
+   * Academic score is BELOW the minimum threshold for the active grading mode.
+   */
+  minimumAcademicThreshold(value, params, fullState) {
+    if (value === '' || value === null || value === undefined) return false;
+    const passes = isAboveMinimumAcademic(
+      value,
+      fullState.gradingMode || 'percentage',
+      params.percentageMinimum,
+      params.cgpaMinimum,
+    );
+    return !passes; // violation = did NOT pass threshold
+  },
+
+  /**
+   * Screening test score is BELOW the minimum passing score.
+   */
+  minimumScreeningThreshold(value, params) {
+    if (value === '' || value === null || value === undefined) return false;
+    return !isAboveMinimumScore(value, params.minimumPassingScore);
+  },
+};
+
 // ── Public API ────────────────────────────────────────────────────────────
 
 export const ValidationEngine = {
@@ -201,6 +253,102 @@ export const ValidationEngine = {
       const rules = getRulesFn(fieldId);
       const result = this.validateField(fieldId, value, formState, rules);
       if (!result.isValid) return false;
+    }
+    return true;
+  },
+
+  // ── Soft-rule methods ──────────────────────────────────────────────────
+
+  /**
+   * Evaluates a SINGLE soft rule against a field value.
+   *
+   * @param {*}        value      - Current field value
+   * @param {object}   fullState  - Complete form state (for cross-field rules)
+   * @param {object}   rule       - A single soft rule object from rules.json
+   * @returns {{ isViolation: boolean, message: string | null }}
+   */
+  evaluateSoftRule(value, fullState, rule) {
+    const handler = SOFT_VALIDATORS[rule.validationType];
+    if (!handler) return { isViolation: false, message: null };
+
+    const violated = handler(value, rule.parameters ?? {}, fullState);
+    return {
+      isViolation: violated,
+      message: violated ? rule.errorMessage : null,
+    };
+  },
+
+  /**
+   * Evaluates all soft rules for a field and returns the FIRST violation found.
+   * Strict and system rules in the array are silently ignored.
+   *
+   * @param {string}   fieldId    - Field identifier (informational only)
+   * @param {*}        value      - Current field value
+   * @param {object}   fullState  - Complete form state
+   * @param {object[]} fieldRules - All rules for this field
+   * @returns {{ isViolation: boolean, message: string | null, rule: object | null }}
+   */
+  validateSoftRules(fieldId, value, fullState, fieldRules) {
+    const softRules = fieldRules.filter((r) => r.ruleType === 'soft');
+
+    for (const rule of softRules) {
+      const result = this.evaluateSoftRule(value, fullState, rule);
+      if (result.isViolation) {
+        return { isViolation: true, message: result.message, rule };
+      }
+    }
+
+    return { isViolation: false, message: null, rule: null };
+  },
+
+  /**
+   * Validates a rationale string against the rule that triggered the soft violation.
+   * The rule supplies rationaleMinLength (from parameters) and rationaleKeywords.
+   *
+   * @param {string}       rationale - User-entered rationale text
+   * @param {object | null} rule     - The violated soft rule object
+   * @returns {{ isValid: boolean }}
+   */
+  validateRationale(rationale, rule) {
+    if (!rule) return { isValid: false };
+    const minLength = rule.parameters?.rationaleMinLength ?? 30;
+    const keywords  = rule.rationaleKeywords ?? [];
+    return { isValid: isValidRationale(rationale, minLength, keywords) };
+  },
+
+  /**
+   * Counts the number of fields that have an active, VALID exception:
+   *   - softValid === false  (there IS a soft violation)
+   *   - exceptionRequested === true
+   *   - rationaleValid === true
+   *
+   * @param {object} metaMap - The full per-field meta map from FormStateManager
+   * @returns {number}
+   */
+  computeExceptionCount(metaMap) {
+    return Object.values(metaMap).filter(
+      (m) => m.softValid === false && m.exceptionRequested && m.rationaleValid
+    ).length;
+  },
+
+  /**
+   * Returns true when the form is eligible for submission:
+   *   - Every field has strictValid === true  (no hard blocks, no unvalidated fields)
+   *   - Every field with a soft violation (softValid === false) has been properly
+   *     overridden: exceptionRequested === true AND rationaleValid === true
+   *
+   * @param {object} metaMap - The full per-field meta map from FormStateManager
+   * @returns {boolean}
+   */
+  isFormEligibleForSubmission(metaMap) {
+    for (const m of Object.values(metaMap)) {
+      // Strict gate: every field must be hard-valid
+      if (m.strictValid !== true) return false;
+
+      // Soft gate: violations must be properly overridden
+      if (m.softValid === false) {
+        if (!m.exceptionRequested || !m.rationaleValid) return false;
+      }
     }
     return true;
   },

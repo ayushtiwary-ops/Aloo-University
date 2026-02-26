@@ -1,7 +1,9 @@
-import { FormCard }        from './ui/components/FormCard.js';
-import { InputField }      from './ui/components/InputField.js';
-import { SubmitButton }    from './ui/components/SubmitButton.js';
-import { RejectionBanner } from './ui/components/RejectionBanner.js';
+import { FormCard }         from './ui/components/FormCard.js';
+import { InputField }       from './ui/components/InputField.js';
+import { SubmitButton }     from './ui/components/SubmitButton.js';
+import { RejectionBanner }  from './ui/components/RejectionBanner.js';
+import { RiskBanner }       from './ui/components/RiskBanner.js';
+import { ExceptionCounter } from './ui/components/ExceptionCounter.js';
 
 /**
  * App
@@ -26,6 +28,9 @@ export function App() {
 
   // Rejection banner — appears above the form when interview is rejected
   stack.appendChild(RejectionBanner());
+
+  // Risk banner — amber, appears when active exception count exceeds 2
+  stack.appendChild(RiskBanner());
 
   // ── Section 1 — Candidate Identity ────────────────────────
   stack.appendChild(FormCard({
@@ -127,6 +132,9 @@ export function App() {
       }),
     ],
   }));
+
+  // Exception counter — shows "Active Exceptions: X" above the submit button
+  stack.appendChild(ExceptionCounter());
 
   stack.appendChild(SubmitButton());
 

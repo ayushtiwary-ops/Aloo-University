@@ -1,6 +1,7 @@
-import { FormStateManager } from '../../state/FormStateManager.js';
+import { FormStateManager }    from '../../state/FormStateManager.js';
+import { ValidationEngine }     from '../../core/ValidationEngine.js';
 import { SubmissionController } from '../../core/SubmissionController.js';
-import { AuditService } from '../../core/AuditService.js';
+import { AuditService }         from '../../core/AuditService.js';
 
 /**
  * SubmitButton
@@ -24,11 +25,18 @@ export function SubmitButton() {
     <span class="submit-button__badge" aria-label="compliance exceptions" data-count=""></span>
   `;
 
-  // Re-evaluate enabled state on every state change
-  FormStateManager.subscribe(() => {
+  const badge = button.querySelector('.submit-button__badge');
+
+  // Re-evaluate enabled state and exception count on every state change
+  FormStateManager.subscribe((values, meta) => {
     const submittable = FormStateManager.isSubmittable();
     button.disabled = !submittable;
     button.setAttribute('aria-disabled', String(!submittable));
+
+    // Update exception count badge
+    const count = ValidationEngine.computeExceptionCount(meta);
+    badge.dataset.count = count > 0 ? String(count) : '';
+    badge.textContent   = count > 0 ? String(count) : '';
   });
 
   button.addEventListener('click', async () => {

@@ -81,3 +81,87 @@ export function isEmailUnique(value, registryKey) {
     return true; // treat parse errors as non-blocking
   }
 }
+
+// ── Soft-rule primitives ──────────────────────────────────────────────────────
+//
+// Each function tests whether a SOFT VIOLATION CONDITION is present.
+// Returns true  = the condition EXISTS (violation fires).
+// Returns false = the condition does NOT exist (no soft violation).
+//
+// Empty / unparseable values always return false so unfilled fields
+// never display amber warnings before the user has interacted with them.
+
+/**
+ * Computes the candidate's age from a dateOfBirth string (YYYY-MM-DD format)
+ * and returns true if that age falls within [minAge, maxAge] inclusive.
+ * Returns false for empty or invalid dates.
+ */
+export function isAgeInRange(dobString, minAge, maxAge) {
+  if (!dobString) return false;
+  const dob = new Date(dobString);
+  if (isNaN(dob.getTime())) return false;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age >= minAge && age <= maxAge;
+}
+
+/**
+ * Returns true when the graduation year is "recent" — i.e. within
+ * recentYearsThreshold years of the current calendar year (inclusive).
+ * A threshold of 0 means only the current year triggers the violation.
+ * Returns false for empty or non-numeric input.
+ */
+export function isGraduationYearRecent(yearString, recentYearsThreshold) {
+  if (!yearString) return false;
+  const year = parseInt(yearString, 10);
+  if (isNaN(year)) return false;
+  const currentYear = new Date().getFullYear();
+  return year >= currentYear - recentYearsThreshold && year <= currentYear;
+}
+
+/**
+ * Returns true when the academic score is ABOVE OR EQUAL TO the minimum
+ * threshold for the active grading mode.
+ * Returns false when the score is below threshold (violation condition).
+ * Returns false for empty or non-numeric input.
+ *
+ * Note: returns the PASS result (true = above threshold) to follow the
+ * same semantics as isNumericRange. The soft validator inverts this.
+ */
+export function isAboveMinimumAcademic(value, gradingMode, percentageMin, cgpaMin) {
+  if (value === '' || value === null || value === undefined) return false;
+  const n = parseFloat(String(value));
+  if (isNaN(n)) return false;
+  const mode = gradingMode === 'cgpa' ? 'cgpa' : 'percentage';
+  return mode === 'cgpa' ? n >= cgpaMin : n >= percentageMin;
+}
+
+/**
+ * Returns true when the score is >= the minimum passing score.
+ * Returns false for empty or non-numeric input.
+ */
+export function isAboveMinimumScore(value, minimum) {
+  if (value === '' || value === null || value === undefined) return false;
+  const n = parseFloat(String(value));
+  if (isNaN(n)) return false;
+  return n >= minimum;
+}
+
+/**
+ * Returns true when the rationale text:
+ *   1. Has at least minLength characters, AND
+ *   2. Contains at least one of the governance keywords (case-insensitive).
+ *
+ * Returns false for empty, null, or invalid input.
+ */
+export function isValidRationale(rationale, minLength, keywords) {
+  if (!rationale || typeof rationale !== 'string') return false;
+  if (rationale.length < minLength) return false;
+  const lower = rationale.toLowerCase();
+  return keywords.some((k) => lower.includes(k.toLowerCase()));
+}

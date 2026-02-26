@@ -34,7 +34,16 @@ describe('FormStateManager — validation extension', () => {
   describe('getFieldMeta(fieldId)', () => {
     it('returns neutral meta (null) before any field is changed', () => {
       const meta = manager.getFieldMeta('fullName');
-      expect(meta).toEqual({ strictValid: null, strictErrorMessage: '' });
+      // Phase 4 extended the meta shape; use toMatchObject for forward compatibility
+      expect(meta).toMatchObject({
+        strictValid: null,
+        strictErrorMessage: '',
+        softValid: null,
+        softViolation: '',
+        exceptionRequested: false,
+        rationale: '',
+        rationaleValid: false,
+      });
     });
 
     it('returns updated strictValid=true after a field passes validation', () => {
@@ -82,7 +91,8 @@ describe('FormStateManager — validation extension', () => {
       manager.subscribe(listener);
       manager.setField('fullName', 'Rohan');
       const meta = listener.mock.calls[0][1];
-      expect(meta.fullName).toEqual({ strictValid: true, strictErrorMessage: '' });
+      // Phase 4 extended the meta shape; check the strict subset
+      expect(meta.fullName).toMatchObject({ strictValid: true, strictErrorMessage: '' });
     });
 
     it('meta snapshot is immutable — mutation in listener does not affect state', () => {
@@ -369,6 +379,266 @@ describe('FormStateManager', () => {
       manager.setField('doesNotExist', 'value');
 
       expect(listener).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ── FormStateManager — soft rule extension ────────────────────────────────────
+//
+// Tests for phase 4: soft-rule evaluation, exception governance, isFlagged().
+
+describe('FormStateManager — soft rule extension', () => {
+  // softValidateFn: violates 'score' when value is a number below 40
+  const softValidateFn = vi.fn((fieldId, value) => {
+    if (fieldId === 'score' && value !== '' && !isNaN(Number(value)) && Number(value) < 40) {
+      return {
+        isViolation: true,
+        message: 'Score below 40 requires an exception.',
+        rule: {
+          rationaleKeywords: ['approved by', 'special case', 'documentation pending', 'waiver granted'],
+          parameters: { rationaleMinLength: 30 },
+        },
+      };
+    }
+    return { isViolation: false, message: null, rule: null };
+  });
+
+  // validateRationaleFn: valid when length >= 30 and contains at least one keyword
+  const validateRationaleFn = vi.fn((rationale, rule) => {
+    if (!rule) return { isValid: false };
+    const minLen   = rule.parameters?.rationaleMinLength ?? 30;
+    const keywords = rule.rationaleKeywords ?? [];
+    if (!rationale || rationale.length < minLen) return { isValid: false };
+    const lower     = rationale.toLowerCase();
+    const hasKw     = keywords.some((k) => lower.includes(k.toLowerCase()));
+    return { isValid: hasKw };
+  });
+
+  let manager;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    manager = createFormStateManager({
+      validateFn:         () => ({ isValid: true, message: null }),
+      softValidateFn,
+      validateRationaleFn,
+    });
+  });
+
+  // ── Extended meta shape ───────────────────────────────────────────────────
+
+  describe('extended meta shape', () => {
+    it('initial meta for every field includes all soft fields at neutral values', () => {
+      const meta = manager.getFieldMeta('score');
+      expect(meta).toMatchObject({
+        strictValid:       null,
+        strictErrorMessage: '',
+        softValid:         null,
+        softViolation:     '',
+        exceptionRequested: false,
+        rationale:         '',
+        rationaleValid:    false,
+      });
+    });
+
+    it('sets softValid=false when a soft rule is violated', () => {
+      manager.setField('score', '30');
+      expect(manager.getFieldMeta('score').softValid).toBe(false);
+    });
+
+    it('sets softViolation message when soft rule fires', () => {
+      manager.setField('score', '30');
+      expect(manager.getFieldMeta('score').softViolation).toBe('Score below 40 requires an exception.');
+    });
+
+    it('sets softValid=true when value passes all soft rules', () => {
+      manager.setField('score', '75');
+      expect(manager.getFieldMeta('score').softValid).toBe(true);
+    });
+
+    it('clears soft violation when value corrects itself above threshold', () => {
+      manager.setField('score', '30');
+      manager.setField('score', '75');
+      expect(manager.getFieldMeta('score').softValid).toBe(true);
+      expect(manager.getFieldMeta('score').softViolation).toBe('');
+    });
+
+    it('softValid is null when field value is empty (not yet filled)', () => {
+      // score is empty by default — not yet interacted with
+      expect(manager.getFieldMeta('score').softValid).toBeNull();
+    });
+
+    it('getFieldMeta returns an immutable snapshot', () => {
+      manager.setField('score', '30');
+      const meta = manager.getFieldMeta('score');
+      meta.softValid = true;
+      expect(manager.getFieldMeta('score').softValid).toBe(false);
+    });
+  });
+
+  // ── setFieldException ─────────────────────────────────────────────────────
+
+  describe('setFieldException(fieldId, exceptionRequested, rationale)', () => {
+    it('sets exceptionRequested=true', () => {
+      manager.setField('score', '30');
+      manager.setFieldException('score', true, '');
+      expect(manager.getFieldMeta('score').exceptionRequested).toBe(true);
+    });
+
+    it('sets rationaleValid=true when rationale meets length and contains a keyword', () => {
+      manager.setField('score', '30');
+      const r = 'This candidate is approved by the committee for special admission.';
+      manager.setFieldException('score', true, r);
+      expect(manager.getFieldMeta('score').rationaleValid).toBe(true);
+      expect(manager.getFieldMeta('score').rationale).toBe(r);
+    });
+
+    it('sets rationaleValid=false when rationale is too short', () => {
+      manager.setField('score', '30');
+      manager.setFieldException('score', true, 'Too short.');
+      expect(manager.getFieldMeta('score').rationaleValid).toBe(false);
+    });
+
+    it('sets rationaleValid=false when rationale meets length but has no keyword', () => {
+      manager.setField('score', '30');
+      const r = 'The candidate has excellent practical skills and strong work experience.';
+      manager.setFieldException('score', true, r);
+      expect(manager.getFieldMeta('score').rationaleValid).toBe(false);
+    });
+
+    it('clears exception state when toggle is turned off', () => {
+      manager.setField('score', '30');
+      const r = 'This candidate is approved by the board for this admission cycle.';
+      manager.setFieldException('score', true, r);
+      manager.setFieldException('score', false, '');
+      const meta = manager.getFieldMeta('score');
+      expect(meta.exceptionRequested).toBe(false);
+      expect(meta.rationale).toBe('');
+      expect(meta.rationaleValid).toBe(false);
+    });
+
+    it('notifies subscribers after exception state update', () => {
+      const listener = vi.fn();
+      manager.subscribe(listener);
+      manager.setField('score', '30');
+      const r = 'This candidate is approved by the admission committee.';
+      manager.setFieldException('score', true, r);
+      // 2 calls: one for setField, one for setFieldException
+      expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores setFieldException on a field with no soft violation', () => {
+      // score=75 passes soft rule — exception request should be silently no-op
+      manager.setField('score', '75');
+      manager.setFieldException('score', true, 'irrelevant rationale text here please');
+      const meta = manager.getFieldMeta('score');
+      // exceptionRequested is irrelevant when there is no soft violation
+      expect(meta.softValid).toBe(true);
+    });
+  });
+
+  // ── isSubmittable with soft gating ────────────────────────────────────────
+
+  describe('isSubmittable() with soft rule gating', () => {
+    it('returns false when a soft violation exists and no exception requested', () => {
+      manager.setField('score', '30');
+      expect(manager.isSubmittable()).toBe(false);
+    });
+
+    it('returns false when exception requested but rationale is invalid', () => {
+      manager.setField('score', '30');
+      manager.setFieldException('score', true, 'Too short.');
+      expect(manager.isSubmittable()).toBe(false);
+    });
+
+    it('returns true when all strict valid and soft violation has valid exception', () => {
+      // Use a manager where all strict checks pass and score is the only soft issue
+      const m = createFormStateManager({
+        validateFn:         () => ({ isValid: true, message: null }),
+        softValidateFn,
+        validateRationaleFn,
+      });
+      const allFields = [
+        'fullName', 'email', 'phone', 'dateOfBirth', 'aadhaar',
+        'qualification', 'graduationYear', 'percentageOrCgpa',
+        'gradingMode', 'interviewStatus', 'offerLetterSent',
+      ];
+      allFields.forEach((f) => m.setField(f, 'x'));
+      m.setField('score', '30'); // soft violation
+      const r = 'This candidate is approved by the board for this admission cycle.';
+      m.setFieldException('score', true, r);
+      expect(m.isSubmittable()).toBe(true);
+    });
+  });
+
+  // ── isFlagged ─────────────────────────────────────────────────────────────
+
+  describe('isFlagged()', () => {
+    it('returns false when active exception count is 0', () => {
+      expect(manager.isFlagged()).toBe(false);
+    });
+
+    it('returns false when active exception count is exactly 2', () => {
+      // Build a manager where two different fields fire soft violations
+      const multiSoft = vi.fn((fieldId) => {
+        const violators = ['score', 'percentageOrCgpa'];
+        if (violators.includes(fieldId)) {
+          return {
+            isViolation: true,
+            message: `${fieldId} below threshold.`,
+            rule: {
+              rationaleKeywords: ['approved by'],
+              parameters: { rationaleMinLength: 10 },
+            },
+          };
+        }
+        return { isViolation: false, message: null, rule: null };
+      });
+      const alwaysValidRationale = () => ({ isValid: true });
+
+      const m = createFormStateManager({
+        validateFn:         () => ({ isValid: true, message: null }),
+        softValidateFn:     multiSoft,
+        validateRationaleFn: alwaysValidRationale,
+      });
+
+      m.setField('score', '30');
+      m.setFieldException('score', true, 'Approved by board.');
+      m.setField('percentageOrCgpa', '40');
+      m.setFieldException('percentageOrCgpa', true, 'Approved by board.');
+
+      expect(m.isFlagged()).toBe(false); // exactly 2 — NOT flagged
+    });
+
+    it('returns true when active exception count exceeds 2', () => {
+      const multiSoft = vi.fn((fieldId) => {
+        const violators = ['score', 'percentageOrCgpa', 'graduationYear'];
+        if (violators.includes(fieldId)) {
+          return {
+            isViolation: true,
+            message: `${fieldId} below threshold.`,
+            rule: {
+              rationaleKeywords: ['approved by'],
+              parameters: { rationaleMinLength: 10 },
+            },
+          };
+        }
+        return { isViolation: false, message: null, rule: null };
+      });
+      const alwaysValidRationale = () => ({ isValid: true });
+
+      const m = createFormStateManager({
+        validateFn:         () => ({ isValid: true, message: null }),
+        softValidateFn:     multiSoft,
+        validateRationaleFn: alwaysValidRationale,
+      });
+
+      ['score', 'percentageOrCgpa', 'graduationYear'].forEach((f) => {
+        m.setField(f, '30');
+        m.setFieldException(f, true, 'Approved by board.');
+      });
+
+      expect(m.isFlagged()).toBe(true); // 3 exceptions → flagged
     });
   });
 });

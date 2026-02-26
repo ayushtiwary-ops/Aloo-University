@@ -4,29 +4,28 @@
  * Centralised, deterministic state container for the AdmitGuard form.
  *
  * Phase 3 additions:
- * - validateFn injection: FormStateManager is decoupled from ValidationEngine.
- *   Production wiring uses the real engine; tests inject a simple stub.
+ * - validateFn injection: decoupled from ValidationEngine for test isolation.
+ * - getDependentsFn injection: config-driven cascade re-validation.
+ * - _fieldMeta tracks { strictValid, strictErrorMessage } per field.
+ * - getFieldMeta(fieldId) exposes per-field validation state as an immutable snapshot.
+ * - Subscriber signature upgraded to (values, meta).
+ * - isSubmittable() requires all fields strictValid === true.
+ * - validateAll() pre-validates all fields at startup.
  *
- * - getDependentsFn injection: when a field changes, FormStateManager looks up
- *   which other fields need re-evaluation. The dependency graph is entirely
- *   config-driven — no field names are hardcoded here.
- *
- * - _fieldMeta stores { strictValid, strictErrorMessage } per field, separate
- *   from values. getState() still returns the flat value map (unchanged API).
- *
- * - getFieldMeta(fieldId) exposes per-field validation state as an immutable
- *   snapshot.
- *
- * - Subscriber signature upgraded to (values, meta). Existing subscribers that
- *   accept only one argument continue to work — extra args are silently ignored.
- *
- * - isSubmittable() returns true only when every field has strictValid === true.
- *   This requires validateAll() to have been called first (done from main.js
- *   after ConfigLoader.load() resolves).
- *
- * - validateAll() runs validateFn on every field with its current value and
- *   issues a single batch notification. Called once at startup to pre-validate
- *   fields that have non-null defaults (e.g. gradingMode = 'percentage').
+ * Phase 4 additions:
+ * - softValidateFn injection: evaluates soft rules; returns { isViolation, message, rule }.
+ * - validateRationaleFn injection: validates exception rationale text against the
+ *   violated soft rule's keywords and minimum length.
+ * - Extended _meta shape per field adds:
+ *     softValid, softViolation, exceptionRequested, rationale, rationaleValid,
+ *     rationaleKeywords, rationaleMinLength
+ * - Private _softViolatedRules map stores the live violated rule object per field
+ *   (never exposed in snapshots) for setFieldException to access.
+ * - setFieldException(fieldId, exceptionRequested, rationale) drives the override flow.
+ * - isSubmittable() delegates to ValidationEngine.isFormEligibleForSubmission()
+ *   which gates on both strict validity and soft exception completeness.
+ * - isFlagged() returns true when the active exception count exceeds 2,
+ *   triggering the managerial-review risk banner.
  */
 
 import { ValidationEngine } from '../core/ValidationEngine.js';
@@ -34,14 +33,20 @@ import { ConfigLoader } from '../core/ConfigLoader.js';
 
 // ── Default injection functions ───────────────────────────────────────────
 
-/** Used when no validateFn is provided (e.g. isolated tests). */
 function _noopValidate() {
   return { isValid: null, message: null };
 }
 
-/** Used when no getDependentsFn is provided. */
 function _noopGetDependents() {
   return [];
+}
+
+function _noopSoftValidate() {
+  return { isViolation: false, message: null, rule: null };
+}
+
+function _noopValidateRationale() {
+  return { isValid: false };
 }
 
 // ── Initial state schema ──────────────────────────────────────────────────
@@ -65,7 +70,21 @@ function _buildInitialMeta() {
   return Object.fromEntries(
     Object.keys(INITIAL_VALUES).map((key) => [
       key,
-      { strictValid: null, strictErrorMessage: '' },
+      {
+        // Strict
+        strictValid:        null,
+        strictErrorMessage: '',
+        // Soft
+        softValid:          null,
+        softViolation:      '',
+        // Exception governance
+        exceptionRequested: false,
+        rationale:          '',
+        rationaleValid:     false,
+        // UI hints surfaced from the violated rule
+        rationaleKeywords:  [],
+        rationaleMinLength: 30,
+      },
     ])
   );
 }
@@ -74,16 +93,24 @@ function _buildInitialMeta() {
 
 /**
  * @param {{
- *   validateFn?:      (fieldId, value, fullState) => { isValid: boolean|null, message: string|null }
- *   getDependentsFn?: (fieldId) => string[]
+ *   validateFn?:          (fieldId, value, fullState) => { isValid: boolean|null, message: string|null }
+ *   softValidateFn?:      (fieldId, value, fullState) => { isViolation: boolean, message: string|null, rule: object|null }
+ *   validateRationaleFn?: (rationale, rule) => { isValid: boolean }
+ *   getDependentsFn?:     (fieldId) => string[]
  * }} options
  */
 export function createFormStateManager(options = {}) {
-  const validateFn      = options.validateFn      ?? _noopValidate;
-  const getDependentsFn = options.getDependentsFn ?? _noopGetDependents;
+  const validateFn          = options.validateFn          ?? _noopValidate;
+  const softValidateFn      = options.softValidateFn      ?? _noopSoftValidate;
+  const validateRationaleFn = options.validateRationaleFn ?? _noopValidateRationale;
+  const getDependentsFn     = options.getDependentsFn     ?? _noopGetDependents;
 
   let _values = { ...INITIAL_VALUES };
   let _meta   = _buildInitialMeta();
+
+  // Private: the current soft-rule object that caused a violation per field.
+  // Never exposed in snapshots; used only by setFieldException.
+  const _softViolatedRules = {};
 
   const _subscribers = new Set();
 
@@ -98,46 +125,86 @@ export function createFormStateManager(options = {}) {
   }
 
   /**
-   * Runs validateFn for a single field and writes the result into _meta.
+   * Runs strict + soft validation for a single field and writes results into _meta.
+   * Preserves existing exception state (exceptionRequested, rationale) when a soft
+   * violation persists — re-validates the rationale against the new (possibly changed)
+   * soft rule so mode changes (e.g. percentage → cgpa) stay consistent.
+   *
    * Does NOT notify subscribers — callers are responsible for notification.
    */
   function _validateAndStore(fieldId, value) {
-    const result = validateFn(fieldId, value, { ..._values });
+    // ── Strict ────────────────────────────────────────────────────────────
+    const strictResult = validateFn(fieldId, value, { ..._values });
+
+    // ── Soft ──────────────────────────────────────────────────────────────
+    const softResult = softValidateFn(fieldId, value, { ..._values });
+
+    // Compute softValid: null for empty/unset values so the UI shows no
+    // indicator before the user has interacted with the field.
+    const isEmpty = value === '' || value === null || value === undefined;
+    const softValidValue = isEmpty
+      ? null
+      : softResult.isViolation ? false : true;
+
+    // Store the current violating rule privately (or clear it)
+    _softViolatedRules[fieldId] = softResult.isViolation ? softResult.rule : null;
+
+    // ── Exception state ───────────────────────────────────────────────────
+    // Carry forward any existing exception request only while a violation persists.
+    const prev = _meta[fieldId] ?? {};
+    let exceptionRequested = softResult.isViolation ? (prev.exceptionRequested ?? false) : false;
+    let rationale          = softResult.isViolation ? (prev.rationale ?? '')          : '';
+    let rationaleValid     = false;
+
+    if (softResult.isViolation && exceptionRequested && rationale) {
+      // Re-validate rationale against the (possibly updated) rule
+      rationaleValid = validateRationaleFn(rationale, softResult.rule).isValid;
+    }
+
+    // ── UI hints from the soft rule ───────────────────────────────────────
+    const rationaleKeywords  = softResult.isViolation
+      ? (softResult.rule?.rationaleKeywords ?? [])
+      : [];
+    const rationaleMinLength = softResult.isViolation
+      ? (softResult.rule?.parameters?.rationaleMinLength ?? 30)
+      : 30;
+
     _meta[fieldId] = {
-      strictValid:        result.isValid,
-      strictErrorMessage: result.message ?? '',
+      strictValid:        strictResult.isValid,
+      strictErrorMessage: strictResult.message ?? '',
+      softValid:          softValidValue,
+      softViolation:      softResult.isViolation ? softResult.message : '',
+      exceptionRequested,
+      rationale,
+      rationaleValid,
+      rationaleKeywords,
+      rationaleMinLength,
     };
   }
 
   // ── Public API ─────────────────────────────────────────────────────────
 
   return {
-    /**
-     * Returns a shallow copy of the current field values.
-     * Unchanged from phase 1 — mutating the returned object has no effect.
-     */
+    /** Returns a shallow copy of the current field values. */
     getState() {
       return { ..._values };
     },
 
     /**
-     * Returns an immutable snapshot of the validation meta for a single field.
+     * Returns an immutable snapshot of the full validation meta for a single field.
      *
      * @param   {string} fieldId
-     * @returns {{ strictValid: null|boolean, strictErrorMessage: string }}
+     * @returns {object}
      */
     getFieldMeta(fieldId) {
       return { ..._meta[fieldId] };
     },
 
     /**
-     * Updates a field's value, runs validation, cascades to dependent fields,
-     * and notifies all subscribers.
+     * Updates a field's value, runs strict + soft validation, cascades to
+     * dependent fields, and notifies all subscribers.
      *
      * Silently ignores writes to fields not in the schema.
-     *
-     * @param {string}          fieldId
-     * @param {string|boolean}  value
      */
     setField(fieldId, value) {
       if (!Object.prototype.hasOwnProperty.call(INITIAL_VALUES, fieldId)) return;
@@ -145,7 +212,6 @@ export function createFormStateManager(options = {}) {
       _values = { ..._values, [fieldId]: value };
       _validateAndStore(fieldId, value);
 
-      // Cascade: re-validate any field that depends on this one
       const dependents = getDependentsFn(fieldId);
       dependents.forEach((depId) => {
         if (Object.prototype.hasOwnProperty.call(_values, depId)) {
@@ -157,12 +223,41 @@ export function createFormStateManager(options = {}) {
     },
 
     /**
+     * Records a user's exception request for a soft-violated field.
+     *
+     * If the field has no active soft violation the call is silently ignored —
+     * this prevents phantom exception state accumulating on clean fields.
+     *
+     * @param {string}  fieldId            - Field identifier
+     * @param {boolean} exceptionRequested - Whether the toggle is ON
+     * @param {string}  rationale          - Current rationale textarea text
+     */
+    setFieldException(fieldId, exceptionRequested, rationale) {
+      if (!Object.prototype.hasOwnProperty.call(_meta, fieldId)) return;
+      if (_meta[fieldId].softValid !== false) return; // no active violation
+
+      const rule         = _softViolatedRules[fieldId] ?? null;
+      const rationaleValid = exceptionRequested
+        ? validateRationaleFn(rationale, rule).isValid
+        : false;
+
+      _meta[fieldId] = {
+        ..._meta[fieldId],
+        exceptionRequested,
+        rationale:   exceptionRequested ? rationale : '',
+        rationaleValid,
+      };
+
+      _notify();
+    },
+
+    /**
      * Validates every field with its current value in one pass.
      * Issues a single batch notification at the end.
      *
-     * Call this once from main.js after ConfigLoader.load() resolves so that
-     * fields with non-empty defaults (e.g. gradingMode = 'percentage') start
-     * life with the correct strictValid state rather than null.
+     * Called once from main.js after ConfigLoader.load() so fields with
+     * non-empty defaults (e.g. gradingMode = 'percentage') start life with
+     * the correct strictValid state.
      */
     validateAll() {
       Object.entries(_values).forEach(([fieldId, value]) => {
@@ -172,30 +267,39 @@ export function createFormStateManager(options = {}) {
     },
 
     /**
-     * Resets all field values and validation meta to their initial state.
+     * Resets all field values, validation meta, and soft-rule state to initial.
      * Notifies subscribers.
      */
     reset() {
       _values = { ...INITIAL_VALUES };
       _meta   = _buildInitialMeta();
+      Object.keys(_softViolatedRules).forEach((k) => delete _softViolatedRules[k]);
       _notify();
     },
 
     /**
-     * Returns true when every field has strictValid === true.
-     * Returns false if any field is invalid (false) or not yet validated (null).
+     * Returns true ONLY when every field is strictly valid AND every soft
+     * violation has been properly overridden (exception requested + valid rationale).
+     *
+     * Delegates to ValidationEngine.isFormEligibleForSubmission() to keep
+     * the eligibility logic in one place.
      */
     isSubmittable() {
-      return Object.values(_meta).every((m) => m.strictValid === true);
+      return ValidationEngine.isFormEligibleForSubmission(_meta);
+    },
+
+    /**
+     * Returns true when the active valid-exception count exceeds 2.
+     * Triggers the managerial-review risk banner in the UI.
+     */
+    isFlagged() {
+      return ValidationEngine.computeExceptionCount(_meta) > 2;
     },
 
     /**
      * Registers a callback called after every state change.
      * Callback signature: (values: object, meta: object) => void
      * Returns an unsubscribe function.
-     *
-     * @param   {function} callback
-     * @returns {function} Unsubscribe
      */
     subscribe(callback) {
       _subscribers.add(callback);
@@ -206,7 +310,7 @@ export function createFormStateManager(options = {}) {
 
 // ── Application singleton ─────────────────────────────────────────────────
 //
-// Wires ValidationEngine and ConfigLoader into the production instance.
+// Wires the real ValidationEngine, ConfigLoader, and rationale validator.
 // UI components import this singleton directly.
 // Tests use createFormStateManager() with stub functions.
 
@@ -218,6 +322,18 @@ export const FormStateManager = createFormStateManager({
       fullState,
       ConfigLoader.getRuleByField(fieldId)
     ),
+
+  softValidateFn: (fieldId, value, fullState) =>
+    ValidationEngine.validateSoftRules(
+      fieldId,
+      value,
+      fullState,
+      ConfigLoader.getRuleByField(fieldId)
+    ),
+
+  validateRationaleFn: (rationale, rule) =>
+    ValidationEngine.validateRationale(rationale, rule),
+
   getDependentsFn: (fieldId) =>
     ValidationEngine.getDependentsOf(fieldId, ConfigLoader.getRules() ?? []),
 });
