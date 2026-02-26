@@ -56,4 +56,12 @@ export const ApiClient = {
   async getAnalytics() {
     return request('GET', '/api/analytics');
   },
+
+  async candidateRegister(full_name, email, phone, password) {
+    return request('POST', '/api/candidate/register', { full_name, email, phone, password });
+  },
+
+  async candidateLogin(email, password) {
+    return request('POST', '/api/candidate/login', { email, password });
+  },
 };
