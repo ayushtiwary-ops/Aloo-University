@@ -9,7 +9,7 @@ export const AuditService = {
    * @param {string} [submittedBy] - UUID of the submitting user
    * @returns {Promise<object>} Inserted record
    */
-  async create(data, submittedBy = null) {
+  async create(data, submittedBy = null, candidateId = null) {
     const {
       candidateData,
       exceptionCount,
@@ -23,8 +23,8 @@ export const AuditService = {
     const { rows } = await query(
       `INSERT INTO audit_records
          (candidate_data, exception_count, exception_fields,
-          rationale_map, flagged, strict_valid, soft_valid, submitted_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          rationale_map, flagged, strict_valid, soft_valid, submitted_by, candidate_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, created_at, exception_count, flagged, strict_valid, soft_valid`,
       [
         JSON.stringify(candidateData),
@@ -35,6 +35,7 @@ export const AuditService = {
         strictValid,
         softValid,
         submittedBy,
+        candidateId,
       ]
     );
 

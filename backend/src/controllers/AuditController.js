@@ -5,10 +5,11 @@ import { ApiError }                   from '../utils/ApiError.js';
 export const AuditController = {
   /**
    * POST /api/audit
-   * Roles: user, admin
+   * Roles: user, admin, candidate
    */
   create: asyncHandler(async (req, res) => {
-    const record = await AuditService.create(req.body, req.user.id);
+    const candidateId = req.user.role === 'candidate' ? req.user.id : null;
+    const record = await AuditService.create(req.body, req.user.id, candidateId);
     res.status(201).json(record);
   }),
 

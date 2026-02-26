@@ -66,4 +66,34 @@ export const CandidateAuthService = {
 
     return { token, user: { id: candidate.id, email: candidate.email, role: 'candidate' } };
   },
+
+  async getProfile(id) {
+    const { rows } = await query(
+      `SELECT id, full_name, email, phone, created_at
+         FROM candidates WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+    if (!rows.length) throw new ApiError(404, 'Candidate not found');
+    return rows[0];
+  },
+
+  async getApplication(candidateId) {
+    // Match by candidate_id column OR by email in candidate_data JSONB
+    // (covers records submitted before the candidate_id column was added)
+    const { rows } = await query(
+      `SELECT *
+         FROM audit_records
+        WHERE candidate_id = $1
+           OR (
+             candidate_id IS NULL
+             AND candidate_data->>'email' = (
+               SELECT email FROM candidates WHERE id = $1
+             )
+           )
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [candidateId]
+    );
+    return rows[0] ?? null;
+  },
 };

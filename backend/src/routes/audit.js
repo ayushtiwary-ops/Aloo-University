@@ -11,7 +11,7 @@ auditRouter.use(authenticateToken);
 // POST /api/audit — user or admin
 auditRouter.post(
   '/',
-  authorizeRole('user', 'admin'),
+  authorizeRole('user', 'admin', 'candidate'),
   validateAuditBody,
   AuditController.create
 );
