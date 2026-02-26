@@ -3,7 +3,7 @@ import { InputField }       from './ui/components/InputField.js';
 import { SubmitButton }     from './ui/components/SubmitButton.js';
 import { RejectionBanner }  from './ui/components/RejectionBanner.js';
 import { RiskBanner }       from './ui/components/RiskBanner.js';
-import { ExceptionCounter } from './ui/components/ExceptionCounter.js';
+import { ComplianceStatusBadge } from './ui/components/ComplianceStatusBadge.js';
 
 /**
  * App
@@ -133,8 +133,8 @@ export function App() {
     ],
   }));
 
-  // Exception counter — shows "Active Exceptions: X" above the submit button
-  stack.appendChild(ExceptionCounter());
+  // Compliance status badge — shows system-determined compliance state above the submit button
+  stack.appendChild(ComplianceStatusBadge());
 
   stack.appendChild(SubmitButton());
 
