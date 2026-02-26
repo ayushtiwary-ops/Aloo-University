@@ -1,41 +1,49 @@
 import { query }    from '../db/pool.js';
-import { ApiError } from '../utils/ApiError.js';
 
 export const AuditService = {
   /**
    * Inserts a new audit record.
+   * candidateData is stored in the data JSONB column;
+   * candidate_name, email, phone are extracted as top-level columns.
    *
-   * @param {object} data - Validated body from AuditController
-   * @param {string} [submittedBy] - UUID of the submitting user
-   * @returns {Promise<object>} Inserted record
+   * @param {object} body        - Validated request body
+   * @param {string|null} submittedBy - UUID of submitting user (null for public)
+   * @returns {Promise<object>}
    */
-  async create(data, submittedBy = null, candidateId = null) {
+  async create(body, submittedBy = null) {
     const {
-      candidateData,
-      exceptionCount,
+      candidateData   = {},
+      exceptionCount  = 0,
       exceptionFields = [],
       rationaleMap    = {},
-      flagged,
-      strictValid,
+      flagged         = false,
+      strictValid     = true,
       softValid       = true,
-    } = data;
+    } = body;
+
+    const candidateName = (candidateData.fullName ?? candidateData.full_name ?? '').trim();
+    const email         = (candidateData.email ?? '').trim();
+    const phone         = (candidateData.phone ?? '').trim();
+
+    // Store full form data + exception detail inside JSONB
+    const dataJson = { ...candidateData, exceptionFields, rationaleMap };
 
     const { rows } = await query(
       `INSERT INTO audit_records
-         (candidate_data, exception_count, exception_fields,
-          rationale_map, flagged, strict_valid, soft_valid, submitted_by, candidate_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, created_at, exception_count, flagged, strict_valid, soft_valid`,
+         (candidate_name, email, phone, data,
+          exception_count, flagged, strict_valid, soft_valid, submitted_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id, submitted_at, exception_count, flagged, strict_valid, soft_valid`,
       [
-        JSON.stringify(candidateData),
+        candidateName,
+        email,
+        phone,
+        JSON.stringify(dataJson),
         exceptionCount,
-        JSON.stringify(exceptionFields),
-        JSON.stringify(rationaleMap),
         flagged,
         strictValid,
         softValid,
-        submittedBy,
-        candidateId,
+        submittedBy ?? null,
       ]
     );
 
@@ -43,92 +51,67 @@ export const AuditService = {
   },
 
   /**
-   * Returns paginated audit records, newest first.
-   *
-   * @param {{ page, limit, offset }} pagination
-   * @returns {Promise<{ records, total, page, pages }>}
+   * Paginated list, newest first.
    */
   async list({ page, limit, offset }) {
     const [dataResult, countResult] = await Promise.all([
       query(
-        `SELECT id, created_at, candidate_data, exception_count,
-                exception_fields, rationale_map, flagged,
-                strict_valid, soft_valid, submitted_by
-         FROM   audit_records
-         ORDER  BY created_at DESC
-         LIMIT  $1 OFFSET $2`,
+        `SELECT id, submitted_at, candidate_name, email, phone, data,
+                exception_count, flagged, strict_valid, soft_valid, submitted_by
+           FROM audit_records
+          ORDER BY submitted_at DESC
+          LIMIT $1 OFFSET $2`,
         [limit, offset]
       ),
       query('SELECT COUNT(*)::int AS total FROM audit_records', []),
     ]);
 
     const total = countResult.rows[0].total;
-
-    return {
-      records: dataResult.rows,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-    };
+    return { records: dataResult.rows, total, page, pages: Math.ceil(total / limit) };
   },
 
   /**
-   * Returns all audit records for export (no pagination).
-   * @returns {Promise<object[]>}
+   * All records for export (no pagination).
    */
   async all() {
     const { rows } = await query(
-      `SELECT id, created_at, candidate_data, exception_count,
-              exception_fields, rationale_map, flagged,
-              strict_valid, soft_valid
-       FROM   audit_records
-       ORDER  BY created_at DESC`,
+      `SELECT id, submitted_at, candidate_name, email, phone, data,
+              exception_count, flagged, strict_valid, soft_valid
+         FROM audit_records
+        ORDER BY submitted_at DESC`,
       []
     );
     return rows;
   },
 };
 
-// ── CSV helpers ───────────────────────────────────────────────────────────
+// ── CSV export ─────────────────────────────────────────────────────────────
 
-const CANDIDATE_FIELDS = [
-  'fullName', 'email', 'phone', 'dateOfBirth', 'aadhaar',
-  'qualification', 'graduationYear', 'percentageOrCgpa',
-  'score', 'interviewStatus', 'offerLetterSent',
+const DATA_FIELDS = [
+  'dateOfBirth','aadhaar','qualification','graduationYear',
+  'percentageOrCgpa','score','interviewStatus','offerLetterSent',
 ];
 
 function _csvEscape(val) {
   const s = val == null ? '' : String(val);
   return s.includes(',') || s.includes('"') || s.includes('\n')
-    ? `"${s.replace(/"/g, '""')}"`
-    : s;
+    ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/**
- * Converts audit records to a CSV string.
- * @param {object[]} records
- * @returns {string}
- */
 export function recordsToCsv(records) {
-  const candidateHeaders = CANDIDATE_FIELDS.map((f) => `candidate_${f}`);
   const headers = [
-    'id', 'created_at',
-    ...candidateHeaders,
-    'exception_count', 'flagged', 'strict_valid', 'soft_valid',
+    'id','submitted_at','candidate_name','email','phone',
+    ...DATA_FIELDS,
+    'exception_count','flagged','strict_valid','soft_valid',
   ];
 
   const rows = records.map((r) => {
-    const cd   = r.candidate_data ?? {};
-    const cols = [
-      r.id,
-      r.created_at,
-      ...CANDIDATE_FIELDS.map((f) => cd[f] ?? ''),
-      r.exception_count,
-      r.flagged,
-      r.strict_valid,
-      r.soft_valid,
-    ];
-    return cols.map(_csvEscape).join(',');
+    const d = r.data ?? {};
+    return [
+      r.id, r.submitted_at, r.candidate_name, r.email, r.phone,
+      ...DATA_FIELDS.map((f) => d[f] ?? ''),
+      r.exception_count, r.flagged, r.strict_valid, r.soft_valid,
+    ].map(_csvEscape).join(',');
   });
 
   return [headers.join(','), ...rows].join('\r\n');

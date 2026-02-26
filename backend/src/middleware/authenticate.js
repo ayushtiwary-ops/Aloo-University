@@ -39,3 +39,18 @@ export function authorizeRole(...roles) {
     next();
   };
 }
+
+/**
+ * Optional JWT extraction.
+ * Does NOT reject unauthenticated requests.
+ * If a valid Bearer token is present, attaches req.user; otherwise req.user stays undefined.
+ * Use on public routes that benefit from knowing the caller when authenticated (e.g. POST /api/audit).
+ */
+export function optionalAuth(req, _res, next) {
+  const header = req.headers.authorization;
+  const token  = header?.startsWith('Bearer ') ? header.slice(7) : null;
+  if (token) {
+    try { req.user = jwt.verify(token, env.jwtSecret); } catch { /* ignore */ }
+  }
+  next();
+}

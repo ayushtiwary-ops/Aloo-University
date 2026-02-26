@@ -8,8 +8,8 @@ export const AuditController = {
    * Roles: user, admin, candidate
    */
   create: asyncHandler(async (req, res) => {
-    const candidateId = req.user.role === 'candidate' ? req.user.id : null;
-    const record = await AuditService.create(req.body, req.user.id, candidateId);
+    const submittedBy = req.user?.id ?? null;
+    const record = await AuditService.create(req.body, submittedBy);
     res.status(201).json(record);
   }),
 
