@@ -58,7 +58,7 @@ export function showConfirmationModal(record) {
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'modal-title');
 
-  const { candidateData = {}, exceptionCount = 0, flagged = false, timestamp } = record;
+  const { candidateData = {}, exceptionCount = 0, flagged = false, timestamp, submissionId } = record;
   const candidateName = candidateData.fullName || '—';
 
   overlay.innerHTML = `
@@ -74,6 +74,7 @@ export function showConfirmationModal(record) {
         <div>
           <h2 class="modal__title" id="modal-title">Application Submitted</h2>
           <p class="modal__subtitle">${_formatTimestamp(timestamp)}</p>
+          ${submissionId ? `<p class="modal__submission-id">${submissionId}</p>` : ''}
         </div>
       </div>
 
