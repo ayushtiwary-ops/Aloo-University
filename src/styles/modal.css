@@ -1,5 +1,184 @@
+/* ── Modal overlay (shared by StaffLoginModal + detail modal) ─── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: rgba(20, 10, 4, 0.60);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  /* Fade-in handled by Motion One on the card child */
+  animation: overlay-in 0.2s ease forwards;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Staff Login modal card ──────────────────────────────────── */
+
+.staff-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.32),
+              0 2px 8px  rgba(0, 0, 0, 0.16);
+  padding: var(--space-7) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  /* Scale set to 0 initially; Motion One animates it in */
+  opacity: 0;
+}
+
+/* Close button — top-right corner */
+.staff-modal__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast),
+              color            var(--transition-fast);
+}
+
+.staff-modal__close:hover {
+  background-color: var(--color-bg-section);
+  color: var(--color-text-primary);
+}
+
+/* ── Submission detail modal card ────────────────────────────── */
+
+.detail-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.32),
+              0 2px 8px  rgba(0, 0, 0, 0.16);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  opacity: 0;
+}
+
+.detail-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-right: var(--space-6); /* room for close button */
+}
+
+.detail-modal__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-modal__name {
+  font-family: var(--font-serif);
+  font-size: var(--text-h2);
+  color: var(--color-primary);
+}
+
+.detail-modal__meta {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+/* Stats row */
+.detail-modal__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  background-color: var(--color-bg-section);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+@media (max-width: 500px) {
+  .detail-modal__stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+.detail-modal__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-modal__stat dt {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+}
+
+.detail-modal__stat dd {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.stat--pass { color: var(--color-green-accent); }
+.stat--fail { color: var(--color-error); }
+
+/* JSON body */
+.detail-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.detail-modal__section-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.detail-modal__section-title--mt {
+  margin-top: var(--space-2);
+}
+
+.detail-modal__json {
+  font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── Submission ID chip (kept from previous sprint) ──────────── */
 .modal__submission-id {
-  font-family: var(--font-mono, monospace);
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: var(--text-caption);
   color: var(--color-text-muted);
   letter-spacing: 0.05em;
