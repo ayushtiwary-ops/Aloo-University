@@ -1,0 +1,187 @@
+/* ── Login View ─────────────────────────────────────────────── */
+
+.login-view {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-base);
+  padding: var(--space-5);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-7) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Brand block at top of card */
+.login-card__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.login-card__logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #C8922A, #7A4A10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  color: #FAF7F2;
+  margin-bottom: var(--space-2);
+}
+
+.login-card__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-h2);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.login-card__subtitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Form fields */
+.login-card__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.login-card__label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.login-card__input {
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.login-card__input:focus {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+/* Error message */
+.login-card__error {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--color-error);
+  text-align: center;
+  min-height: 18px;
+}
+
+/* Submit button */
+.login-card__submit {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: #FAF7F2;
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  transition: background-color var(--transition-fast);
+}
+
+.login-card__submit:hover:not(:disabled) {
+  background-color: var(--color-primary-light);
+}
+
+.login-card__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* CSS spinner */
+.login-card__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: loginSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes loginSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Header logout area */
+.site-header__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.site-header__user-email {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--color-accent-subtle);
+  opacity: 0.8;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-btn {
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--color-accent-subtle);
+  background-color: transparent;
+  border: 1px solid rgba(200, 146, 42, 0.4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.logout-btn:hover {
+  background-color: rgba(200, 146, 42, 0.15);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
