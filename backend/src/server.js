@@ -11,6 +11,7 @@ import { auditRouter }   from './routes/audit.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { candidateAuthRouter } from './routes/candidateAuth.js';
 import { candidateMeRouter }   from './routes/candidateMe.js';
+import { candidatesRouter }    from './routes/candidates.js';
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.use('/api/audit',     auditRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/candidate/me', candidateMeRouter);
 app.use('/api/candidate',    candidateAuthRouter);
+
+app.use('/api/candidates', candidatesRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));

@@ -8,6 +8,6 @@ analyticsRouter.use(authenticateToken);
 
 analyticsRouter.get(
   '/',
-  authorizeRole('admin'),
+  authorizeRole('admin', 'user'),
   AnalyticsController.dashboard
 );

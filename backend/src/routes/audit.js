@@ -23,10 +23,10 @@ auditRouter.get(
   AuditController.export
 );
 
-// GET /api/audit?page&limit — admin only
+// GET /api/audit?page&limit — admin + counselor
 auditRouter.get(
   '/',
-  authorizeRole('admin'),
+  authorizeRole('admin', 'user'),
   parsePagination,
   AuditController.list
 );
