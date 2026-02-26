@@ -149,19 +149,25 @@ export function createFormStateManager(options = {}) {
     // Store the current violating rule privately (or clear it)
     _softViolatedRules[fieldId] = softResult.isViolation ? softResult.rule : null;
 
-    // ── Exception state (engine-driven auto-grant) ────────────────────────
-    // Exceptions are no longer manually requested. When the engine detects a
-    // soft violation the exception is automatically approved so that:
-    //   - isFormEligibleForSubmission() stays unlocked (strict-only gate)
-    //   - computeExceptionCount() correctly reflects the violation count
-    //   - isFlagged() triggers at > 2 violations as before
-    const exceptionRequested = softResult.isViolation;
-    const rationale          = '';
-    const rationaleValid     = softResult.isViolation;
+    // ── Exception state (manual override — user must request + provide rationale) ─
+    // When a soft violation fires, preserve any existing exception state the user
+    // has already entered so that re-validation does not reset their input.
+    const prevMeta = _meta[fieldId] ?? {};
+    const existingViolation = prevMeta.softValid === false;
+    // Carry forward exception state only if violation persists; reset when cleared
+    const exceptionRequested = softResult.isViolation
+      ? (prevMeta.exceptionRequested ?? false)
+      : false;
+    const rationale = softResult.isViolation
+      ? (prevMeta.rationale ?? '')
+      : '';
+    const rationaleValid = exceptionRequested
+      ? validateRationaleFn(rationale, softResult.rule).isValid
+      : false;
 
-    // ── UI hints from the soft rule ───────────────────────────────────────
-    const rationaleKeywords  = [];
-    const rationaleMinLength = 30;
+    // ── UI hints surfaced from the violated soft rule ─────────────────────
+    const rationaleKeywords  = softResult.rule?.rationaleKeywords ?? [];
+    const rationaleMinLength = softResult.rule?.parameters?.rationaleMinLength ?? 30;
 
     _meta[fieldId] = {
       strictValid:        strictResult.isValid,
