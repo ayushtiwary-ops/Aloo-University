@@ -49,24 +49,10 @@
       "ruleType": "strict",
       "validationType": "ageRange",
       "parameters": {
-        "minAge": 17,
+        "minAge": 18,
         "maxAge": 35
       },
       "errorMessage": "Candidate must be between 17 and 35 years of age at the time of admission."
-    },
-
-    {
-      "field": "dateOfBirth",
-      "ruleType": "soft",
-      "validationType": "ageRangeExtended",
-      "parameters": {
-        "minAge": 36,
-        "maxAge": 40,
-        "rationaleMinLength": 30
-      },
-      "errorMessage": "Candidate age is between 36 and 40. An exception with valid rationale is required to proceed.",
-      "exceptionAllowed": true,
-      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {
@@ -84,7 +70,7 @@
       "ruleType": "strict",
       "validationType": "allowedValue",
       "parameters": {
-        "allowedValues": ["ssc", "hsc", "diploma", "bachelors", "masters", "phd"]
+        "allowedValues": ["b.tech", "b.e.", "b.sc", "bca", "m.tech", "m.sc", "mca", "mba"]
       },
       "errorMessage": "Please select a valid qualification from the list."
     },
@@ -94,24 +80,10 @@
       "ruleType": "strict",
       "validationType": "yearRange",
       "parameters": {
-        "minYear": 1980,
-        "maxYearOffset": 0
+        "minYear": 2015,
+        "maxYear": 2025
       },
-      "_paramNote": "maxYearOffset 0 = current calendar year; resolved at runtime.",
       "errorMessage": "Graduation year must be between 1980 and the current year."
-    },
-
-    {
-      "field": "graduationYear",
-      "ruleType": "soft",
-      "validationType": "recentGraduation",
-      "parameters": {
-        "recentYearsThreshold": 0,
-        "rationaleMinLength": 30
-      },
-      "errorMessage": "Candidate graduated in the current year. Original mark sheet verification is required before proceeding.",
-      "exceptionAllowed": true,
-      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {
@@ -131,8 +103,8 @@
       "ruleType": "soft",
       "validationType": "minimumAcademicThreshold",
       "parameters": {
-        "percentageMinimum": 50,
-        "cgpaMinimum": 5.0,
+        "percentageMinimum": 60,
+        "cgpaMinimum": 6.0,
         "rationaleMinLength": 30
       },
       "dependencies": ["gradingMode"],

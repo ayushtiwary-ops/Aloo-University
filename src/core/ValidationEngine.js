@@ -130,10 +130,18 @@ const VALIDATORS = {
     return fullState[params.blockedField] !== params.blockedFieldValue;
   },
 
+  // Strict implementations for ageRange and yearRange
+  ageRange(value, params) {
+    return isAgeInRange(value, params.minAge, params.maxAge);
+  },
+
+  yearRange(value, params) {
+    const maxYear = params.maxYear ?? new Date().getFullYear();
+    return isIntegerRange(value, params.minYear, maxYear);
+  },
+
   // Soft-only types — not evaluated here, return true to remain neutral
-  ageRange:                  () => true,
   ageRangeExtended:          () => true,
-  yearRange:                 () => true,
   recentGraduation:          () => true,
   minimumAcademicThreshold:  () => true,
   minimumScreeningThreshold: () => true,
