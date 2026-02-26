@@ -60,6 +60,25 @@ export function createAuditService() {
     },
 
     /**
+     * Returns an incrementing submission ID in the format AG-YYYY-NNNN.
+     * Counter is persisted to localStorage so it survives page reloads.
+     * Format: AG-2026-0001, AG-2026-0002, …
+     */
+    nextId() {
+      const COUNTER_KEY = 'admitguard_submission_counter';
+      const year = new Date().getFullYear();
+      try {
+        const raw = localStorage.getItem(COUNTER_KEY);
+        const data = raw ? JSON.parse(raw) : {};
+        const count = (data.year === year ? (data.count ?? 0) : 0) + 1;
+        localStorage.setItem(COUNTER_KEY, JSON.stringify({ year, count }));
+        return `AG-${year}-${String(count).padStart(4, '0')}`;
+      } catch {
+        return `AG-${year}-XXXX`;
+      }
+    },
+
+    /**
      * Persists `record` to localStorage.
      * If a record with the same `id` already exists the call is a no-op.
      *
@@ -72,6 +91,23 @@ export function createAuditService() {
       if (isDuplicate) return record;
 
       _write([...existing, record]);
+
+      // Register email so emailUniqueness validator can check it
+      try {
+        const email = record.candidateData?.email;
+        if (email) {
+          const EMAIL_REGISTRY_KEY = 'admitguard_registered_emails';
+          const raw = localStorage.getItem(EMAIL_REGISTRY_KEY);
+          const registry = Array.isArray(JSON.parse(raw ?? '[]'))
+            ? JSON.parse(raw ?? '[]')
+            : [];
+          if (!registry.some((e) => e.toLowerCase() === email.toLowerCase())) {
+            registry.push(email.toLowerCase());
+            localStorage.setItem(EMAIL_REGISTRY_KEY, JSON.stringify(registry));
+          }
+        }
+      } catch { /* storage errors are non-fatal */ }
+
       return record;
     },
 

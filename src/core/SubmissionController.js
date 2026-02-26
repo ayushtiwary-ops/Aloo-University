@@ -21,8 +21,9 @@ import { showConfirmationModal } from '../ui/components/ConfirmationModal.js';
 
 // ── Audit record builder (pure, injectable for tests) ──────────────────────
 
-function _buildRecord(snapshot, meta, generateId) {
-  const id        = generateId();
+function _buildRecord(snapshot, meta, generateId, auditService) {
+  const id        = generateId();        // legacy collision-resistant ID (kept for audit log row key)
+  const submissionId = auditService.nextId(); // AG-YYYY-NNNN displayed in modal
   const timestamp = new Date().toISOString();
 
   // Fields with a fully valid exception (requested + rationale accepted)
@@ -42,6 +43,7 @@ function _buildRecord(snapshot, meta, generateId) {
 
   return {
     id,
+    submissionId,
     timestamp,
     candidateData:   { ...snapshot },
     exceptionCount,
@@ -69,7 +71,7 @@ export function createSubmissionController({ auditService, showModal, resetFn })
      * @returns {Promise<{ success: boolean, error: string|null }>}
      */
     async submit(snapshot, meta) {
-      const record = _buildRecord(snapshot, meta, () => auditService.generateId());
+      const record = _buildRecord(snapshot, meta, () => auditService.generateId(), auditService);
       auditService.save(record);
       showModal(record);
       resetFn();
