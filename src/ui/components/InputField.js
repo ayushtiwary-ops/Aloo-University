@@ -7,15 +7,9 @@ import { FormStateManager } from '../../state/FormStateManager.js';
  * to FormStateManager.setField(), and subscribes to (values, meta) state
  * changes to update its own indicators, borders, and messages.
  *
- * Phase 3: strict validation indicators (red border, error message, dot colour).
- *
- * Phase 4 additions:
- * - Reads softValid / softViolation / exceptionRequested / rationale /
- *   rationaleValid / rationaleKeywords from field meta.
- * - Sets .field--warning on wrapper when a soft rule is violated.
- * - Shows amber warning message and "Request Exception" toggle.
- * - When toggle is ON, reveals the rationale textarea with keyword hints
- *   and calls FormStateManager.setFieldException() on every change.
+ * Strict violations: red border + error message, blocks submission.
+ * Soft violations:   amber border + helper text, submission still allowed.
+ * Valid:             green border.
  *
  * Priority:  strictValid=false (red)  >  softValid=false (amber)  >  valid (green)
  *
@@ -63,91 +57,21 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
     primaryControl.setAttribute('aria-describedby', `${id}-message`);
   }
 
-  // ── Soft-violation area (hidden when no soft violation) ────────────────
-  const softArea = document.createElement('div');
-  softArea.className = 'field__soft-area';
-  softArea.hidden = true;
-  wrapper.appendChild(softArea);
-
-  // Amber warning message
-  const softMessageEl = document.createElement('p');
-  softMessageEl.className = 'field__message field__message--warning';
-  softMessageEl.setAttribute('aria-live', 'polite');
-  softArea.appendChild(softMessageEl);
-
-  // Exception toggle row
-  const exceptionRow = document.createElement('div');
-  exceptionRow.className = 'field__exception-row';
-  softArea.appendChild(exceptionRow);
-
-  const exceptionToggle = document.createElement('button');
-  exceptionToggle.className = 'field__exception-toggle';
-  exceptionToggle.type = 'button';
-  exceptionToggle.textContent = 'Request Exception';
-  exceptionToggle.setAttribute('aria-pressed', 'false');
-  exceptionRow.appendChild(exceptionToggle);
-
-  // Rationale area (hidden until toggle is ON)
-  const rationaleArea = document.createElement('div');
-  rationaleArea.className = 'field__rationale-area';
-  rationaleArea.hidden = true;
-  softArea.appendChild(rationaleArea);
-
-  const rationaleLabel = document.createElement('p');
-  rationaleLabel.className = 'field__rationale-label';
-  rationaleLabel.textContent = 'Exception Rationale';
-  rationaleArea.appendChild(rationaleLabel);
-
-  const rationaleHint = document.createElement('p');
-  rationaleHint.className = 'field__rationale-hint';
-  rationaleArea.appendChild(rationaleHint);
-
-  const rationaleTextarea = document.createElement('textarea');
-  rationaleTextarea.className = 'field__rationale-textarea';
-  rationaleTextarea.rows = 3;
-  rationaleTextarea.placeholder =
-    'Describe the reason for this exception (minimum 30 characters)…';
-  rationaleTextarea.setAttribute('aria-label', `Exception rationale for ${label}`);
-  rationaleArea.appendChild(rationaleTextarea);
-
-  const rationaleMsgEl = document.createElement('p');
-  rationaleMsgEl.className = 'field__rationale-message';
-  rationaleArea.appendChild(rationaleMsgEl);
-
-  // ── Exception toggle interaction ───────────────────────────────────────
-  exceptionToggle.addEventListener('click', () => {
-    const nowPressed = exceptionToggle.getAttribute('aria-pressed') !== 'true';
-    exceptionToggle.setAttribute('aria-pressed', String(nowPressed));
-    rationaleArea.hidden = !nowPressed;
-    FormStateManager.setFieldException(
-      id,
-      nowPressed,
-      nowPressed ? rationaleTextarea.value : ''
-    );
-  });
-
-  rationaleTextarea.addEventListener('input', () => {
-    FormStateManager.setFieldException(id, true, rationaleTextarea.value);
-  });
+  // ── Soft-violation helper text (amber, no interaction) ─────────────────
+  const softHelper = document.createElement('p');
+  softHelper.className = 'field__message field__message--warning';
+  softHelper.setAttribute('aria-live', 'polite');
+  softHelper.hidden = true;
+  wrapper.appendChild(softHelper);
 
   // ── Subscribe to state changes ─────────────────────────────────────────
   const unsubscribe = FormStateManager.subscribe((values, meta) => {
     const fieldMeta = meta?.[id];
     if (!fieldMeta) return;
 
-    const {
-      strictValid,
-      strictErrorMessage,
-      softValid,
-      softViolation,
-      exceptionRequested,
-      rationale,
-      rationaleValid,
-      rationaleKeywords,
-      rationaleMinLength,
-    } = fieldMeta;
+    const { strictValid, strictErrorMessage, softValid } = fieldMeta;
 
-    // ── Wrapper class (priority: strict > soft > valid) ──────────────────
+    // Wrapper class (priority: strict > soft > valid)
     wrapper.classList.remove('field--valid', 'field--invalid', 'field--warning');
     if (strictValid === false) {
       wrapper.classList.add('field--invalid');
@@ -157,7 +81,7 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
       wrapper.classList.add('field--valid');
     }
 
-    // ── Strict message ───────────────────────────────────────────────────
+    // Strict error message
     if (strictValid === false && strictErrorMessage) {
       messageEl.textContent = strictErrorMessage;
       messageEl.classList.add('field__message--error');
@@ -166,74 +90,15 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
       messageEl.classList.remove('field__message--error');
     }
 
-    // ── Soft violation area ──────────────────────────────────────────────
+    // Soft helper text
     const hasSoftViolation = softValid === false;
-    softArea.hidden = !hasSoftViolation;
-
-    if (hasSoftViolation) {
-      softMessageEl.textContent = softViolation;
-
-      // Sync toggle pressed state
-      const isRequested = Boolean(exceptionRequested);
-      exceptionToggle.setAttribute('aria-pressed', String(isRequested));
-      rationaleArea.hidden = !isRequested;
-
-      if (isRequested) {
-        // Keyword hint
-        if (rationaleKeywords?.length) {
-          const kwList = rationaleKeywords.map((k) => `"${k}"`).join(', ');
-          rationaleHint.innerHTML =
-            `Must be ≥ ${rationaleMinLength} characters and include at least one of: ` +
-            `<strong>${kwList}</strong>.`;
-        }
-
-        // Sync textarea value only when it differs (prevents cursor jump)
-        if (rationaleTextarea.value !== rationale) {
-          rationaleTextarea.value = rationale;
-        }
-
-        // Rationale textarea border
-        rationaleTextarea.classList.toggle(
-          'field__rationale-textarea--invalid',
-          !rationaleValid
-        );
-
-        // Rationale validation message
-        rationaleMsgEl.classList.remove(
-          'field__rationale-message--error',
-          'field__rationale-message--valid'
-        );
-        if (rationale.length > 0) {
-          if (rationaleValid) {
-            rationaleMsgEl.textContent = 'Rationale accepted.';
-            rationaleMsgEl.classList.add('field__rationale-message--valid');
-          } else {
-            rationaleMsgEl.textContent =
-              `Rationale must be at least ${rationaleMinLength} characters ` +
-              `and include a recognised governance keyword.`;
-            rationaleMsgEl.classList.add('field__rationale-message--error');
-          }
-        } else {
-          rationaleMsgEl.textContent = '';
-        }
-      } else {
-        // Toggle is off — clear rationale UI
-        rationaleMsgEl.textContent = '';
-        rationaleTextarea.value = '';
-        rationaleTextarea.classList.remove('field__rationale-textarea--invalid');
-      }
-    } else {
-      // No soft violation — reset exception UI state
-      exceptionToggle.setAttribute('aria-pressed', 'false');
-      rationaleArea.hidden = true;
-      rationaleTextarea.value = '';
-      rationaleMsgEl.textContent = '';
-    }
+    softHelper.hidden = !hasSoftViolation;
+    softHelper.textContent = hasSoftViolation
+      ? 'Below recommended threshold. Submission allowed but will be reviewed.'
+      : '';
   });
 
-  // Expose unsubscribe for cleanup
   wrapper._unsubscribe = unsubscribe;
-
   return wrapper;
 }
 
