@@ -42,7 +42,7 @@
   justify-content: center;
   font-family: var(--font-serif);
   font-size: 24px;
-  color: #FAF7F2;
+  color: var(--color-bg-base);
   margin-bottom: var(--space-2);
 }
 
@@ -111,7 +111,7 @@
   font-family: var(--font-sans);
   font-size: var(--text-body);
   font-weight: 600;
-  color: #FAF7F2;
+  color: var(--color-bg-base);
   background-color: var(--color-primary);
   border: none;
   border-radius: var(--radius-md);
@@ -130,6 +130,11 @@
 .login-card__submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.login-card__submit:not(:disabled):focus-visible {
+  box-shadow: var(--shadow-focus);
+  outline: none;
 }
 
 /* CSS spinner */

@@ -20,7 +20,7 @@ export function LoginView({ onSuccess }) {
   view.className = 'login-view';
 
   view.innerHTML = `
-    <div class="login-card" role="main">
+    <div class="login-card">
       <div class="login-card__brand">
         <div class="login-card__logo" aria-hidden="true">A</div>
         <h1 class="login-card__title">ALOO University</h1>
@@ -65,14 +65,23 @@ export function LoginView({ onSuccess }) {
   const errorEl     = view.querySelector('#login-error');
   const submitBtn   = view.querySelector('#login-submit');
 
+  // Pre-build spinner node so _setLoading never touches innerHTML
+  const spinner = document.createElement('span');
+  spinner.className = 'login-card__spinner';
+  spinner.setAttribute('aria-hidden', 'true');
+
   let _loading = false;
 
   function _setLoading(on) {
     _loading = on;
     submitBtn.disabled = on;
-    submitBtn.innerHTML = on
-      ? '<span class="login-card__spinner" aria-hidden="true"></span> Signing in…'
-      : 'Sign In';
+    if (on) {
+      submitBtn.textContent = '';
+      submitBtn.appendChild(spinner);
+      submitBtn.append(' Signing in\u2026');
+    } else {
+      submitBtn.textContent = 'Sign In';
+    }
   }
 
   function _setError(msg) {
