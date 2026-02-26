@@ -1,18 +1,15 @@
 /**
  * Header
  *
- * Site masthead with ALOO University brand identity and dark mode toggle.
+ * Site masthead with ALOO University brand identity, dark mode toggle,
+ * and (when onLogout is provided) a user-email chip + logout button.
  *
- * The logomark is an abstract organic oval SVG — not a literal potato.
- * The theme toggle subscribes to ThemeService changes so its icon stays
- * in sync even when the theme is changed programmatically.
- *
+ * @param {{ onLogout?: () => void }} [props]
  * @returns {HTMLElement}
  */
 
 import { ThemeService } from '../../core/ThemeService.js';
-
-// ── SVG icons ─────────────────────────────────────────────────────────────
+import { AuthService }  from '../../core/AuthService.js';
 
 const MOON_ICON = `
   <svg viewBox="0 0 24 24" fill="none" width="18" height="18"
@@ -30,9 +27,7 @@ const SUN_ICON = `
           stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`;
 
-// ── Component ─────────────────────────────────────────────────────────────
-
-export function Header() {
+export function Header({ onLogout } = {}) {
   const el = document.createElement('header');
   el.className = 'site-header';
   el.setAttribute('role', 'banner');
@@ -73,16 +68,34 @@ export function Header() {
   }
 
   _syncToggle();
-
-  toggle.addEventListener('click', () => {
-    ThemeService.toggle();
-    _syncToggle();
-  });
-
-  // Stay in sync if theme changes from another source (e.g. dev tools)
+  toggle.addEventListener('click', () => { ThemeService.toggle(); _syncToggle(); });
   ThemeService.onThemeChange(() => _syncToggle());
-
   el.appendChild(toggle);
+
+  // User chip + logout (only when authenticated)
+  if (onLogout) {
+    const userArea = document.createElement('div');
+    userArea.className = 'site-header__user';
+
+    const email = AuthService.getEmail();
+    if (email) {
+      const emailEl = document.createElement('span');
+      emailEl.className = 'site-header__user-email';
+      emailEl.textContent = email;
+      emailEl.title = email;
+      userArea.appendChild(emailEl);
+    }
+
+    const logoutBtn = document.createElement('button');
+    logoutBtn.type = 'button';
+    logoutBtn.className = 'logout-btn';
+    logoutBtn.textContent = 'Logout';
+    logoutBtn.setAttribute('aria-label', 'Log out of AdmitGuard');
+    logoutBtn.addEventListener('click', onLogout);
+    userArea.appendChild(logoutBtn);
+
+    el.appendChild(userArea);
+  }
 
   return el;
 }
