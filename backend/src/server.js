@@ -9,6 +9,7 @@ import { errorHandler }  from './middleware/errorHandler.js';
 import { authRouter }    from './routes/auth.js';
 import { auditRouter }   from './routes/audit.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { candidateAuthRouter } from './routes/candidateAuth.js';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth',      authRouter);
 app.use('/api/audit',     auditRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/candidate', candidateAuthRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
