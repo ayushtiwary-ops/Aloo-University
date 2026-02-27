@@ -40,6 +40,20 @@ function _escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+
+function _showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `ag-toast ag-toast--${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('ag-toast--visible'));
+  setTimeout(() => {
+    toast.classList.remove('ag-toast--visible');
+    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+  }, 4000);
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -177,6 +191,36 @@ export function SubmissionsTab() {
     a.download = `admitguard-audit-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function _exportGoogleSheets() {
+    const records  = AuditService.getAll();
+    const sheetsBtn = host.querySelector('.export-btn--sheets');
+    if (sheetsBtn) { sheetsBtn.disabled = true; sheetsBtn.textContent = 'Exporting…'; }
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/export/google-sheets`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${AuthService.getToken()}`,
+        },
+        body: JSON.stringify({ records }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        _showToast(data?.error ?? `Export failed (${res.status})`, 'error');
+        return;
+      }
+
+      const n = data.updatedRows ?? records.length;
+      _showToast(`${n} row${n !== 1 ? 's' : ''} exported to Google Sheets.`, 'success');
+    } catch {
+      _showToast('Google Sheets export failed. Check network and try again.', 'error');
+    } finally {
+      if (sheetsBtn) { sheetsBtn.disabled = false; sheetsBtn.textContent = 'Export to Sheets'; }
+    }
   }
 
   // ── Expand panel builder ───────────────────────────────────────────────────
@@ -431,6 +475,13 @@ export function SubmissionsTab() {
       csvBtn.textContent = 'Export CSV';
       csvBtn.addEventListener('click', _exportCSV);
       exportWrap.appendChild(csvBtn);
+
+      const sheetsBtn = document.createElement('button');
+      sheetsBtn.type = 'button';
+      sheetsBtn.className = 'export-btn export-btn--sheets';
+      sheetsBtn.textContent = 'Export to Sheets';
+      sheetsBtn.addEventListener('click', _exportGoogleSheets);
+      exportWrap.appendChild(sheetsBtn);
     }
 
     hdr.appendChild(exportWrap);
