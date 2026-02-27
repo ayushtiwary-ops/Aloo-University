@@ -57,57 +57,12 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
     primaryControl.setAttribute('aria-describedby', `${id}-message`);
   }
 
-  // ── Exception override area ────────────────────────────────────────────
-  const exceptionArea = document.createElement('div');
-  exceptionArea.className = 'field__exception-area';
-  exceptionArea.hidden = true;
-
-  const exceptionToggle = document.createElement('button');
-  exceptionToggle.type = 'button';
-  exceptionToggle.className = 'field__exception-toggle';
-  exceptionToggle.setAttribute('aria-pressed', 'false');
-  exceptionToggle.textContent = 'Request Exception';
-  exceptionArea.appendChild(exceptionToggle);
-
-  const rationaleArea = document.createElement('div');
-  rationaleArea.className = 'field__rationale-area';
-  rationaleArea.hidden = true;
-
-  const rationaleInput = document.createElement('textarea');
-  rationaleInput.className = 'field__rationale';
-  rationaleInput.rows = 3;
-  rationaleInput.placeholder = 'Provide justification (e.g. "Approved by director — special case")';
-  rationaleInput.setAttribute('aria-label', `Exception rationale for ${label}`);
-  rationaleArea.appendChild(rationaleInput);
-
-  const rationaleMsgEl = document.createElement('p');
-  rationaleMsgEl.className = 'field__rationale-msg field__rationale-msg--hint';
-  rationaleMsgEl.setAttribute('aria-live', 'polite');
-  rationaleArea.appendChild(rationaleMsgEl);
-
-  exceptionArea.appendChild(rationaleArea);
-  wrapper.appendChild(exceptionArea);
-
-  // Wire toggle
-  exceptionToggle.addEventListener('click', () => {
-    const on = exceptionToggle.getAttribute('aria-pressed') !== 'true';
-    FormStateManager.setFieldException(id, on, rationaleInput.value);
-  });
-
-  // Wire textarea — update on every keystroke
-  rationaleInput.addEventListener('input', () => {
-    const on = exceptionToggle.getAttribute('aria-pressed') === 'true';
-    FormStateManager.setFieldException(id, on, rationaleInput.value);
-  });
-
   // ── Subscribe to state changes ─────────────────────────────────────────
   const unsubscribe = FormStateManager.subscribe((values, meta) => {
     const fieldMeta = meta?.[id];
     if (!fieldMeta) return;
 
-    const { status, strictErrorMessage, softViolation,
-            exceptionRequested, rationaleValid, rationaleKeywords,
-            rationaleMinLength } = fieldMeta;
+    const { status, strictErrorMessage, softViolation } = fieldMeta;
 
     // Wrapper class driven by unified status field
     wrapper.classList.remove('field--valid', 'field--invalid', 'field--warning');
@@ -129,39 +84,6 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
       messageEl.classList.add('field__message--warning');
     } else {
       messageEl.textContent = '';
-    }
-
-    // Exception toggle area — only shown when soft violation is active
-    const hasSoftViolation = status === 'soft-warning';
-    exceptionArea.hidden = !hasSoftViolation;
-    if (!hasSoftViolation) {
-      exceptionToggle.setAttribute('aria-pressed', 'false');
-      rationaleArea.hidden = true;
-      rationaleInput.value = '';
-      rationaleMsgEl.innerHTML = '';
-    } else {
-      exceptionToggle.setAttribute('aria-pressed', String(exceptionRequested));
-      exceptionToggle.classList.toggle('field__exception-toggle--active', exceptionRequested);
-      rationaleArea.hidden = !exceptionRequested;
-      if (exceptionRequested) {
-        const minLen  = rationaleMinLength ?? 30;
-        const kwds    = rationaleKeywords ?? [];
-        const len     = rationaleInput.value.trim().length;
-        const lower   = rationaleInput.value.toLowerCase();
-        const lenOk   = len >= minLen;
-        const kwdOk   = kwds.length === 0 || kwds.some((k) => lower.includes(k.toLowerCase()));
-
-        // Two-item checklist indicators
-        const lenLine = `<span class="${lenOk ? 'check--ok' : 'check--fail'}">${lenOk ? '✔' : '✗'} ${minLen}+ chars${lenOk ? '' : ` (${len}/${minLen})`}</span>`;
-        const kwdLine = kwds.length
-          ? `<br><span class="${kwdOk ? 'check--ok' : 'check--fail'}">${kwdOk ? '✔' : '✗'} keyword present</span>`
-          : '';
-
-        rationaleMsgEl.innerHTML = lenLine + kwdLine;
-        rationaleMsgEl.className = 'field__rationale-msg field__rationale-checks';
-      } else {
-        rationaleMsgEl.innerHTML = '';
-      }
     }
   });
 
