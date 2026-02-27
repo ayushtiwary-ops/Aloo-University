@@ -1,0 +1,354 @@
+/* ============================================================
+   Analytics Dashboard — dv-* namespace
+   DashboardView (src/ui/views/DashboardView.js)
+   ============================================================ */
+
+/* ── Root ──────────────────────────────────────────────────── */
+
+.dv-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ── Header ────────────────────────────────────────────────── */
+
+.dv-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.dv-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-h2);
+  color: var(--color-primary);
+  margin-bottom: var(--space-1);
+}
+
+.dv-subtitle {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+/* ── Filter bar ────────────────────────────────────────────── */
+
+.dv-filter-bar {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.dv-filter-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast),
+              color            var(--transition-fast),
+              border-color     var(--transition-fast);
+}
+
+.dv-filter-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.dv-filter-btn--active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.dv-filter-btn--active:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* ── Metric card grid ──────────────────────────────────────── */
+
+.dv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 700px) {
+  .dv-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 420px) {
+  .dv-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Metric card ───────────────────────────────────────────── */
+
+.dv-card {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition: transform        var(--transition-fast),
+              box-shadow       var(--transition-fast),
+              border-color     var(--transition-fast),
+              background-color var(--transition-base);
+}
+
+.dv-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background-color: var(--color-accent);
+  opacity: 0.35;
+  transition: opacity var(--transition-fast);
+}
+
+.dv-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(61, 35, 20, 0.12),
+              0 1px 4px  rgba(61, 35, 20, 0.08);
+}
+
+.dv-card:hover::before { opacity: 0.7; }
+
+.dv-card--warning { border-color: rgba(160, 106, 10, 0.35); }
+.dv-card--warning::before { background-color: var(--color-warning); opacity: 0.6; }
+
+.dv-card--alert { border-color: rgba(139, 46, 46, 0.30); }
+.dv-card--alert::before { background-color: var(--color-error); opacity: 0.6; }
+
+.dv-card__icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-accent);
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.dv-card__label {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.dv-card__value {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-primary);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.dv-card__unit {
+  font-family: var(--font-sans);
+  font-size: var(--text-h2);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.dv-card__desc {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+/* ── Empty state ───────────────────────────────────────────── */
+
+.dv-empty {
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+}
+
+/* ── Section ───────────────────────────────────────────────── */
+
+.dv-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dv-section__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-h2);
+  color: var(--color-primary);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dv-section__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Risk distribution bars ────────────────────────────────── */
+
+.dv-risk-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 90px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dv-risk-row__label {
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.dv-risk-row__track {
+  height: 10px;
+  background-color: var(--color-bg-section);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  transition: background-color var(--transition-base);
+}
+
+.dv-risk-row__bar {
+  height: 100%;
+  border-radius: 5px;
+  min-width: 2px;
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dv-risk-row__bar--low    { background-color: var(--color-green-accent); }
+.dv-risk-row__bar--medium { background-color: var(--color-warning); }
+.dv-risk-row__bar--high   { background-color: var(--color-error); }
+
+.dv-risk-row__count {
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dv-risk-row__pct {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+}
+
+/* ── Exception breakdown table ─────────────────────────────── */
+
+.dv-exc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+  transition: background-color var(--transition-base);
+}
+
+.dv-exc-table__th {
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-bg-section);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+  text-align: left;
+  transition: background-color var(--transition-base);
+}
+
+.dv-exc-table__th--right { text-align: right; }
+
+.dv-exc-table__row {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--transition-fast);
+}
+
+.dv-exc-table__row:last-child { border-bottom: none; }
+.dv-exc-table__row:hover      { background-color: var(--color-bg-section); }
+
+.dv-exc-table__td {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.dv-exc-table__td--right { text-align: right; }
+.dv-exc-table__td--muted { color: var(--color-text-muted); }
+
+.dv-exc-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 7px;
+  background-color: var(--color-warning-subtle);
+  color: var(--color-warning);
+  border: 1px solid rgba(160, 106, 10, 0.25);
+  border-radius: 11px;
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+/* ── Operational insights ──────────────────────────────────── */
+
+.dv-insights {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background-color: var(--color-bg-section);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  transition: background-color var(--transition-base),
+              border-color     var(--transition-base);
+}
+
+.dv-insights__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+.dv-insights__item::before {
+  content: '';
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  margin-top: 8px;
+}
+
+/* ── Dark mode adjustments ─────────────────────────────────── */
+
+[data-theme="dark"] .dv-risk-row__bar--low {
+  background-color: var(--color-green-accent);
+}

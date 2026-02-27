@@ -1,6 +1,7 @@
 import { Header }         from '../components/Header.js';
 import { OverviewTab }    from '../components/OverviewTab.js';
 import { SubmissionsTab } from '../components/SubmissionsTab.js';
+import { DashboardView }  from '../views/DashboardView.js';
 import { AuthService }    from '../../core/AuthService.js';
 import { animate }        from 'motion';
 
@@ -38,8 +39,9 @@ export function StaffDashboard() {
   }
 
   const t0 = _makeTab('Overview',    'sd-overview');
-  const t1 = _makeTab('Submissions', 'sd-submissions');
-  [t0, t1].forEach((t) => navInner.appendChild(t));
+  const t1 = _makeTab('Analytics',   'sd-analytics');
+  const t2 = _makeTab('Submissions', 'sd-submissions');
+  [t0, t1, t2].forEach((t) => navInner.appendChild(t));
   navWrapper.appendChild(navInner);
   root.appendChild(navWrapper);
 
@@ -54,23 +56,31 @@ export function StaffDashboard() {
   p0.setAttribute('aria-labelledby', t0.id);
 
   const p1 = document.createElement('div');
-  p1.id = 'sd-submissions';
+  p1.id = 'sd-analytics';
   p1.setAttribute('role', 'tabpanel');
   p1.setAttribute('aria-labelledby', t1.id);
   p1.hidden = true;
 
-  const { el: overviewEl,     refresh: refreshOverview }     = OverviewTab();
-  const { el: submissionsEl,  refresh: refreshSubmissions }  = SubmissionsTab();
+  const p2 = document.createElement('div');
+  p2.id = 'sd-submissions';
+  p2.setAttribute('role', 'tabpanel');
+  p2.setAttribute('aria-labelledby', t2.id);
+  p2.hidden = true;
+
+  const { el: overviewEl,    refresh: refreshOverview }    = OverviewTab();
+  const { el: analyticsEl,   refresh: refreshAnalytics }   = DashboardView();
+  const { el: submissionsEl, refresh: refreshSubmissions }  = SubmissionsTab();
 
   p0.appendChild(overviewEl);
-  p1.appendChild(submissionsEl);
-  [p0, p1].forEach((p) => container.appendChild(p));
+  p1.appendChild(analyticsEl);
+  p2.appendChild(submissionsEl);
+  [p0, p1, p2].forEach((p) => container.appendChild(p));
   root.appendChild(container);
 
   // ── Tab activation ───────────────────────────────────────────
-  const tabs    = [t0, t1];
-  const panels  = [p0, p1];
-  const refresh = [refreshOverview, refreshSubmissions];
+  const tabs    = [t0, t1, t2];
+  const panels  = [p0, p1, p2];
+  const refresh = [refreshOverview, refreshAnalytics, refreshSubmissions];
 
   function _activate(idx) {
     tabs.forEach((t, i) => {
