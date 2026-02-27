@@ -1,10 +1,15 @@
 import { query }    from '../db/pool.js';
+import { ApiError } from '../utils/ApiError.js';
 
 export const AuditService = {
   /**
    * Inserts a new audit record.
    * candidateData is stored in the data JSONB column;
    * candidate_name, email, phone are extracted as top-level columns.
+   *
+   * Rejects with 400 if strictValid is false — strict rule violations must
+   * never reach the database; the frontend should prevent submission, and the
+   * backend enforces this as a safety net.
    *
    * @param {object} body        - Validated request body
    * @param {string|null} submittedBy - UUID of submitting user (null for public)
@@ -20,6 +25,10 @@ export const AuditService = {
       strictValid     = true,
       softValid       = true,
     } = body;
+
+    if (strictValid === false) {
+      throw new ApiError(400, 'Submission blocked: strict rule violation.');
+    }
 
     const candidateName = (candidateData.fullName ?? candidateData.full_name ?? '').trim();
     const email         = (candidateData.email ?? '').trim();

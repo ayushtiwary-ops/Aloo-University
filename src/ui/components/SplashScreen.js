@@ -1,9 +1,15 @@
 /**
  * SplashScreen
  *
- * Full-viewport branded intro overlay. Runs a ~2.2s Motion One animation
+ * Full-viewport branded intro overlay. Runs a 3 000 ms Motion One animation
  * sequence, then calls onComplete() so the caller can mount the main app
  * and remove this element.
+ *
+ * Timeline:
+ *   0 – 800 ms   logo fade-in + scale bounce
+ *   800 – 2 000 ms  title & subtitle staggered slide-up + underline draw
+ *   2 000 – 2 600 ms  logo amber glow pulse
+ *   2 600 – 3 000 ms  whole overlay fade-out → onComplete()
  *
  * Prevents all interaction during playback via pointer-events:all on .splash.
  *
@@ -35,39 +41,45 @@ export function SplashScreen({ onComplete }) {
   const underline = el.querySelector('.splash__underline');
 
   requestAnimationFrame(() => {
-    // 1. Logo: scale bounce + amber glow pulse
+    // 1. Logo: fade-in + scale bounce (0 – 800 ms)
     animate(
       logo,
-      {
-        transform:  ['scale(0.8)', 'scale(1.05)', 'scale(1)'],
-        boxShadow:  [
-          '0 0 0px 0px rgba(200,146,42,0)',
-          '0 0 40px 12px rgba(200,146,42,0.45)',
-          '0 0 16px 4px rgba(200,146,42,0.2)',
-        ],
-      },
-      { duration: 0.7, easing: [0.22, 1, 0.36, 1] },
+      { opacity: [0, 1], transform: ['scale(0.8)', 'scale(1.05)', 'scale(1)'] },
+      { duration: 0.8, easing: [0.22, 1, 0.36, 1] },
     );
 
-    // 2. Title + subtitle: staggered fade-up
+    // 2. Title + subtitle: staggered slide-up (800 – 2 000 ms)
     animate(
       [title, subtitle],
       { opacity: [0, 1], transform: ['translateY(10px)', 'translateY(0)'] },
-      { duration: 0.5, delay: stagger(0.1, { start: 0.5 }), easing: [0.22, 1, 0.36, 1] },
+      { duration: 0.6, delay: stagger(0.15, { start: 0.8 }), easing: [0.22, 1, 0.36, 1] },
     );
 
-    // 3. Underline draw
+    // 3. Underline draw (starts with title at ~900 ms)
     animate(
       underline,
       { transform: ['scaleX(0)', 'scaleX(1)'] },
-      { duration: 0.6, delay: 0.55, easing: [0.22, 1, 0.36, 1] },
+      { duration: 0.7, delay: 0.9, easing: [0.22, 1, 0.36, 1] },
     );
 
-    // 4. Fade out whole splash after 2.2s
+    // 4. Amber glow pulse on logo (2 000 – 2 600 ms)
+    animate(
+      logo,
+      {
+        boxShadow: [
+          '0 0 0px 0px rgba(200,146,42,0)',
+          '0 0 60px 20px rgba(200,146,42,0.55)',
+          '0 0 0px 0px rgba(200,146,42,0)',
+        ],
+      },
+      { duration: 0.6, delay: 2.0, easing: 'ease-in-out' },
+    );
+
+    // 5. Overlay fade-out (2 600 – 3 000 ms)
     setTimeout(() => {
-      animate(el, { opacity: [1, 0] }, { duration: 0.25, easing: 'ease-in' })
+      animate(el, { opacity: [1, 0] }, { duration: 0.4, easing: 'ease-in' })
         .finished.then(onComplete);
-    }, 2200);
+    }, 2600);
   });
 
   return el;
