@@ -192,6 +192,25 @@ const SOFT_VALIDATORS = {
     if (value === '' || value === null || value === undefined) return false;
     return !isAboveMinimumScore(value, params.minimumPassingScore);
   },
+
+  /**
+   * Age is OUTSIDE the allowed range [minAge, maxAge].
+   * Used when dateOfBirth is treated as a soft rule.
+   */
+  ageRange(value, params) {
+    if (!value) return false;
+    return !isAgeInRange(value, params.minAge, params.maxAge);
+  },
+
+  /**
+   * Graduation year is OUTSIDE the allowed integer range [minYear, maxYear].
+   * Used when graduationYear is treated as a soft rule.
+   */
+  yearRange(value, params) {
+    if (value === '' || value === null || value === undefined) return false;
+    const maxYear = params.maxYear ?? new Date().getFullYear();
+    return !isIntegerRange(value, params.minYear, maxYear);
+  },
 };
 
 // ── Public API ────────────────────────────────────────────────────────────

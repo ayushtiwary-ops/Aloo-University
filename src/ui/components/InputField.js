@@ -105,7 +105,7 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
     const fieldMeta = meta?.[id];
     if (!fieldMeta) return;
 
-    const { strictValid, strictErrorMessage, softValid,
+    const { strictValid, strictErrorMessage, softValid, softViolation,
             exceptionRequested, rationaleValid, rationaleKeywords,
             rationaleMinLength } = fieldMeta;
 
@@ -119,44 +119,49 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
       wrapper.classList.add('field--valid');
     }
 
-    // Strict error message
+    // Inline message: strict error (red) OR soft warning (amber)
+    messageEl.classList.remove('field__message--error', 'field__message--warning');
     if (strictValid === false && strictErrorMessage) {
       messageEl.textContent = strictErrorMessage;
       messageEl.classList.add('field__message--error');
+    } else if (softValid === false && softViolation) {
+      messageEl.textContent = softViolation;
+      messageEl.classList.add('field__message--warning');
     } else {
       messageEl.textContent = '';
-      messageEl.classList.remove('field__message--error');
     }
 
     // Exception toggle area — only shown when soft violation is active
+    // Strict fields never have softValid === false, so toggle never appears for them
     const hasSoftViolation = softValid === false;
     exceptionArea.hidden = !hasSoftViolation;
     if (!hasSoftViolation) {
       exceptionToggle.setAttribute('aria-pressed', 'false');
       rationaleArea.hidden = true;
       rationaleInput.value = '';
-      rationaleMsgEl.textContent = '';
+      rationaleMsgEl.innerHTML = '';
     } else {
       exceptionToggle.setAttribute('aria-pressed', String(exceptionRequested));
       exceptionToggle.classList.toggle('field__exception-toggle--active', exceptionRequested);
       rationaleArea.hidden = !exceptionRequested;
       if (exceptionRequested) {
-        // Update hint
-        const len  = rationaleInput.value.trim().length;
-        const kwds = rationaleKeywords ?? [];
-        const lower = rationaleInput.value.toLowerCase();
-        const hasKeyword = kwds.some((k) => lower.includes(k.toLowerCase()));
-        const lenOk = len >= (rationaleMinLength ?? 30);
-        if (rationaleValid) {
-          rationaleMsgEl.textContent = '✓ Rationale accepted.';
-          rationaleMsgEl.className = 'field__rationale-msg field__rationale-msg--ok';
-        } else {
-          const parts = [];
-          if (!lenOk)     parts.push(`${len}/${rationaleMinLength ?? 30} chars`);
-          if (!hasKeyword && kwds.length) parts.push(`keyword required: ${kwds.slice(0, 2).join(', ')}…`);
-          rationaleMsgEl.textContent = parts.join(' · ');
-          rationaleMsgEl.className = 'field__rationale-msg field__rationale-msg--hint';
-        }
+        const minLen  = rationaleMinLength ?? 30;
+        const kwds    = rationaleKeywords ?? [];
+        const len     = rationaleInput.value.trim().length;
+        const lower   = rationaleInput.value.toLowerCase();
+        const lenOk   = len >= minLen;
+        const kwdOk   = kwds.length === 0 || kwds.some((k) => lower.includes(k.toLowerCase()));
+
+        // Two-item checklist indicators
+        const lenLine = `<span class="${lenOk ? 'check--ok' : 'check--fail'}">${lenOk ? '✔' : '✗'} ${minLen}+ chars${lenOk ? '' : ` (${len}/${minLen})`}</span>`;
+        const kwdLine = kwds.length
+          ? `<br><span class="${kwdOk ? 'check--ok' : 'check--fail'}">${kwdOk ? '✔' : '✗'} keyword present</span>`
+          : '';
+
+        rationaleMsgEl.innerHTML = lenLine + kwdLine;
+        rationaleMsgEl.className = 'field__rationale-msg field__rationale-checks';
+      } else {
+        rationaleMsgEl.innerHTML = '';
       }
     }
   });

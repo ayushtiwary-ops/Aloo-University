@@ -46,13 +46,16 @@
 
     {
       "field": "dateOfBirth",
-      "ruleType": "strict",
+      "ruleType": "soft",
       "validationType": "ageRange",
       "parameters": {
         "minAge": 18,
-        "maxAge": 35
+        "maxAge": 35,
+        "rationaleMinLength": 30
       },
-      "errorMessage": "Candidate must be between 17 and 35 years of age at the time of admission."
+      "errorMessage": "Candidate age must be between 18 and 35. An exception with rationale is required.",
+      "exceptionAllowed": true,
+      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {
@@ -77,13 +80,16 @@
 
     {
       "field": "graduationYear",
-      "ruleType": "strict",
+      "ruleType": "soft",
       "validationType": "yearRange",
       "parameters": {
         "minYear": 2015,
-        "maxYear": 2025
+        "maxYear": 2025,
+        "rationaleMinLength": 30
       },
-      "errorMessage": "Graduation year must be between 1980 and the current year."
+      "errorMessage": "Graduation year must be between 2015 and 2025. An exception with rationale is required.",
+      "exceptionAllowed": true,
+      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
     },
 
     {
