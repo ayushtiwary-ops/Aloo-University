@@ -6,3 +6,7 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Google credential files — must never be committed
+backend/service-account.json
+backend/client_secret*.json

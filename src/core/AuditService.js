@@ -160,7 +160,7 @@ export function createAuditService() {
       if (!status || status === 'All') return all.map((r) => ({ ...r }));
       if (status === 'High Risk') {
         return all
-          .filter((r) => _riskLevel(r.riskScore ?? 0) === 'High')
+          .filter((r) => (r.riskLevel ?? _riskLevel(r.riskScore ?? 0)) === 'High')
           .map((r) => ({ ...r }));
       }
       return all
@@ -198,7 +198,7 @@ export function createAuditService() {
 
         totalExceptions += r.validationSummary?.exceptionCount ?? 0;
 
-        const level = _riskLevel(r.riskScore ?? 0);
+        const level = r.riskLevel ?? _riskLevel(r.riskScore ?? 0);
         if      (level === 'Low')    lowRisk++;
         else if (level === 'Medium') medRisk++;
         else                         highRisk++;

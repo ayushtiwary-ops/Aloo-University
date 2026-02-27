@@ -1,8 +1,8 @@
 /* ============================================================
-   Sprint 7 — Executive Dashboard + UX Hardening styles
-   Covers: dashboard layout, metric cards, recent table,
-           dark mode theme toggle in header, expand animation,
-           nav full-width wrapper fix, UX micro-interactions
+   Dashboard + UX Hardening styles
+   Covers: dashboard layout, metric cards, tab views, tier bar,
+           SVG trend chart, submissions table, modal badges,
+           dark mode theme toggle, UX micro-interactions
    ============================================================ */
 
 /* ── Header — dark mode toggle ────────────────────────────── */

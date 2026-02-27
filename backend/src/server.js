@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express  from 'express';
 import helmet   from 'helmet';
 import cors     from 'cors';
@@ -9,6 +11,7 @@ import { errorHandler }    from './middleware/errorHandler.js';
 import { authRouter }      from './routes/auth.js';
 import { auditRouter }     from './routes/audit.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { exportRouter }    from './routes/export.js';
 
 const app = express();
 
@@ -28,6 +31,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth',      authRouter);
 app.use('/api/audit',     auditRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/export',    exportRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 app.use(errorHandler);
