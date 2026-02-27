@@ -105,26 +105,26 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
     const fieldMeta = meta?.[id];
     if (!fieldMeta) return;
 
-    const { strictValid, strictErrorMessage, softValid, softViolation,
+    const { status, strictErrorMessage, softViolation,
             exceptionRequested, rationaleValid, rationaleKeywords,
             rationaleMinLength } = fieldMeta;
 
-    // Wrapper class (priority: strict > soft > valid)
+    // Wrapper class driven by unified status field
     wrapper.classList.remove('field--valid', 'field--invalid', 'field--warning');
-    if (strictValid === false) {
+    if (status === 'strict-error') {
       wrapper.classList.add('field--invalid');
-    } else if (softValid === false) {
+    } else if (status === 'soft-warning') {
       wrapper.classList.add('field--warning');
-    } else if (strictValid === true && softValid !== false) {
+    } else if (status === 'valid') {
       wrapper.classList.add('field--valid');
     }
 
     // Inline message: strict error (red) OR soft warning (amber)
     messageEl.classList.remove('field__message--error', 'field__message--warning');
-    if (strictValid === false && strictErrorMessage) {
+    if (status === 'strict-error' && strictErrorMessage) {
       messageEl.textContent = strictErrorMessage;
       messageEl.classList.add('field__message--error');
-    } else if (softValid === false && softViolation) {
+    } else if (status === 'soft-warning' && softViolation) {
       messageEl.textContent = softViolation;
       messageEl.classList.add('field__message--warning');
     } else {
@@ -132,8 +132,7 @@ export function InputField({ id, label, type, placeholder = '', options = [] }) 
     }
 
     // Exception toggle area — only shown when soft violation is active
-    // Strict fields never have softValid === false, so toggle never appears for them
-    const hasSoftViolation = softValid === false;
+    const hasSoftViolation = status === 'soft-warning';
     exceptionArea.hidden = !hasSoftViolation;
     if (!hasSoftViolation) {
       exceptionToggle.setAttribute('aria-pressed', 'false');

@@ -1,5 +1,5 @@
 {
-  "_version": "1.0.0",
+  "_version": "2.0.0",
   "_cohort": "default",
   "_description": "AdmitGuard compliance rules for ALOO University. All numeric thresholds, allowed values, and dependency conditions live here. ValidationEngine contains no hardcoded values.",
 
@@ -7,185 +7,156 @@
 
     {
       "field": "fullName",
-      "ruleType": "strict",
-      "validationType": "minLengthNoNumbers",
-      "parameters": {
-        "minLength": 2
-      },
+      "label": "Full Name",
+      "type": "strict",
+      "validation": { "custom": "minLengthNoNumbers" },
+      "constraints": { "minLength": 2 },
       "errorMessage": "Full name must be at least 2 characters and must not contain numbers."
     },
 
     {
       "field": "email",
-      "ruleType": "strict",
-      "validationType": "emailFormat",
-      "parameters": {},
+      "label": "Email Address",
+      "type": "strict",
+      "validation": { "custom": "isEmail" },
+      "constraints": {},
       "errorMessage": "Enter a valid email address (e.g. candidate@domain.com)."
     },
 
     {
       "field": "email",
-      "ruleType": "strict",
-      "validationType": "emailUniqueness",
-      "parameters": {
-        "registryKey": "admitguard_registered_emails"
-      },
+      "label": "Email Address",
+      "type": "strict",
+      "validation": { "custom": "emailUniqueness" },
+      "constraints": { "registryKey": "admitguard_registered_emails" },
       "errorMessage": "This email address has already been registered in the system."
     },
 
     {
       "field": "phone",
-      "ruleType": "strict",
-      "validationType": "indianMobile",
-      "parameters": {
-        "digitCount": 10,
-        "allowedPrefixes": ["6", "7", "8", "9"]
-      },
+      "label": "Phone Number",
+      "type": "strict",
+      "validation": { "custom": "isIndianPhone" },
+      "constraints": { "digitCount": 10, "allowedPrefixes": ["6", "7", "8", "9"] },
       "errorMessage": "Phone must be a 10-digit Indian mobile number starting with 6, 7, 8, or 9."
     },
 
     {
       "field": "dateOfBirth",
-      "ruleType": "soft",
-      "validationType": "ageRange",
-      "parameters": {
-        "minAge": 18,
-        "maxAge": 35,
-        "rationaleMinLength": 30
-      },
+      "label": "Date of Birth",
+      "type": "soft",
+      "validation": { "custom": "ageBetween" },
+      "constraints": { "min": 18, "max": 35 },
       "errorMessage": "Candidate age must be between 18 and 35. An exception with rationale is required.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
+      "rationale": { "minLength": 30, "keywords": ["approved by", "special case", "documentation pending", "waiver granted"] }
     },
 
     {
       "field": "aadhaar",
-      "ruleType": "strict",
-      "validationType": "aadhaarFormat",
-      "parameters": {
-        "digitCount": 12
-      },
+      "label": "Aadhaar Number",
+      "type": "strict",
+      "validation": { "custom": "isAadhaar" },
+      "constraints": { "digitCount": 12 },
       "errorMessage": "Aadhaar number must be exactly 12 digits with no spaces or letters."
     },
 
     {
       "field": "qualification",
-      "ruleType": "strict",
-      "validationType": "allowedValue",
-      "parameters": {
-        "allowedValues": ["b.tech", "b.e.", "b.sc", "bca", "m.tech", "m.sc", "mca", "mba"]
-      },
+      "label": "Qualification",
+      "type": "strict",
+      "validation": { "custom": "allowedValue" },
+      "constraints": { "allowedValues": ["b.tech", "b.e.", "b.sc", "bca", "m.tech", "m.sc", "mca", "mba"] },
       "errorMessage": "Please select a valid qualification from the list."
     },
 
     {
       "field": "graduationYear",
-      "ruleType": "soft",
-      "validationType": "yearRange",
-      "parameters": {
-        "minYear": 2015,
-        "maxYear": 2025,
-        "rationaleMinLength": 30
-      },
+      "label": "Graduation Year",
+      "type": "soft",
+      "validation": { "custom": "yearRange" },
+      "constraints": { "minYear": 2015, "maxYear": 2025 },
       "errorMessage": "Graduation year must be between 2015 and 2025. An exception with rationale is required.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
+      "rationale": { "minLength": 30, "keywords": ["approved by", "special case", "documentation pending", "waiver granted"] }
     },
 
     {
       "field": "percentageOrCgpa",
-      "ruleType": "strict",
-      "validationType": "scoreByGradingMode",
-      "parameters": {
+      "label": "Academic Score",
+      "type": "strict",
+      "validation": { "custom": "scoreByGradingMode", "dependencies": ["gradingMode"] },
+      "constraints": {
         "percentage": { "min": 0, "max": 100 },
         "cgpa":       { "min": 0, "max": 10  }
       },
-      "dependencies": ["gradingMode"],
       "errorMessage": "Enter a valid score. Percentage must be 0–100; CGPA must be 0–10."
     },
 
     {
       "field": "percentageOrCgpa",
-      "ruleType": "soft",
-      "validationType": "minimumAcademicThreshold",
-      "parameters": {
-        "percentageMinimum": 60,
-        "cgpaMinimum": 6.0,
-        "rationaleMinLength": 30
-      },
-      "dependencies": ["gradingMode"],
-      "errorMessage": "Academic score is below the recommended threshold (50% / 5.0 CGPA). An exception with rationale is required.",
+      "label": "Academic Score",
+      "type": "soft",
+      "validation": { "custom": "percentageOrCgpaThreshold", "dependencies": ["gradingMode"] },
+      "constraints": { "percentageMinimum": 60, "cgpaMinimum": 6.0 },
+      "errorMessage": "Academic score is below the recommended threshold (60% / 6.0 CGPA). An exception with rationale is required.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
+      "rationale": { "minLength": 30, "keywords": ["approved by", "special case", "documentation pending", "waiver granted"] }
     },
 
     {
       "field": "score",
-      "ruleType": "strict",
-      "validationType": "integerRange",
-      "parameters": {
-        "min": 0,
-        "max": 100
-      },
+      "label": "Screening Test Score",
+      "type": "strict",
+      "validation": { "custom": "integerRange" },
+      "constraints": { "min": 0, "max": 100 },
       "errorMessage": "Screening test score must be a whole number between 0 and 100."
     },
 
     {
       "field": "score",
-      "ruleType": "soft",
-      "validationType": "minimumScreeningThreshold",
-      "parameters": {
-        "minimumPassingScore": 40,
-        "rationaleMinLength": 30
-      },
+      "label": "Screening Test Score",
+      "type": "soft",
+      "validation": { "custom": "minimumScreeningThreshold" },
+      "constraints": { "minimumPassingScore": 40 },
       "errorMessage": "Screening test score is below the minimum passing threshold of 40. An exception with rationale is required.",
       "exceptionAllowed": true,
-      "rationaleKeywords": ["approved by", "special case", "documentation pending", "waiver granted"]
+      "rationale": { "minLength": 30, "keywords": ["approved by", "special case", "documentation pending", "waiver granted"] }
     },
 
     {
       "field": "interviewStatus",
-      "ruleType": "strict",
-      "validationType": "allowedValue",
-      "parameters": {
-        "allowedValues": ["cleared", "waitlisted", "rejected"]
-      },
+      "label": "Interview Status",
+      "type": "strict",
+      "validation": { "custom": "allowedValue" },
+      "constraints": { "allowedValues": ["cleared", "waitlisted", "rejected"] },
       "errorMessage": "Interview status must be Cleared, Waitlisted, or Rejected."
     },
 
     {
       "field": "interviewStatus",
-      "ruleType": "system",
-      "validationType": "blocksSubmissionWhenValue",
-      "parameters": {
-        "blockedValues": ["rejected"]
-      },
+      "label": "Interview Status",
+      "type": "system",
+      "validation": { "custom": "blocksSubmissionWhenValue" },
+      "constraints": { "blockedValues": ["rejected"] },
       "errorMessage": "This application cannot be submitted. The candidate's interview result is Rejected."
     },
 
     {
       "field": "interviewStatus",
-      "ruleType": "system",
-      "validationType": "blocksFieldWhenValue",
-      "parameters": {
-        "blockedField": "offerLetterSent",
-        "blockedFieldValue": true,
-        "whenValue": "rejected"
-      },
-      "dependencies": ["offerLetterSent"],
+      "label": "Interview Status",
+      "type": "system",
+      "validation": { "custom": "blocksFieldWhenValue", "dependencies": ["offerLetterSent"] },
+      "constraints": { "blockedField": "offerLetterSent", "blockedFieldValue": true, "whenValue": "rejected" },
       "errorMessage": "Offer letter cannot be issued to a candidate whose interview status is Rejected."
     },
 
     {
       "field": "offerLetterSent",
-      "ruleType": "system",
-      "validationType": "dependsOnFieldValue",
-      "parameters": {
-        "dependsOn": "interviewStatus",
-        "allowedWhen": ["cleared"],
-        "blockedWhen": ["waitlisted", "rejected"]
-      },
-      "dependencies": ["interviewStatus"],
+      "label": "Offer Letter Sent",
+      "type": "system",
+      "validation": { "custom": "interviewOfferDependency", "dependencies": ["interviewStatus"] },
+      "constraints": { "dependsOn": "interviewStatus", "allowedWhen": ["cleared"] },
       "errorMessage": "Offer letter can only be marked as sent when interview status is Cleared."
     }
 

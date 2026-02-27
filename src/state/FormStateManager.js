@@ -77,6 +77,9 @@ function _buildInitialMeta() {
         // Soft
         softValid:          null,
         softViolation:      '',
+        // Unified status derived from strictValid + softValid
+        // 'strict-error' | 'soft-warning' | 'valid' | null
+        status:             null,
         // Exception governance
         exceptionRequested: false,
         rationale:          '',
@@ -166,14 +169,29 @@ export function createFormStateManager(options = {}) {
       : false;
 
     // ── UI hints surfaced from the violated soft rule ─────────────────────
-    const rationaleKeywords  = softResult.rule?.rationaleKeywords ?? [];
-    const rationaleMinLength = softResult.rule?.parameters?.rationaleMinLength ?? 30;
+    // v2 schema: rule.rationale.keywords / rule.rationale.minLength
+    // v1 fallback: rule.rationaleKeywords / rule.parameters.rationaleMinLength
+    const rationaleKeywords  = softResult.rule?.rationale?.keywords
+                            ?? softResult.rule?.rationaleKeywords
+                            ?? [];
+    const rationaleMinLength = softResult.rule?.rationale?.minLength
+                            ?? softResult.rule?.parameters?.rationaleMinLength
+                            ?? 30;
+
+    // ── Unified status field (derived) ────────────────────────────────────
+    let status = null;
+    if (strictResult.isValid === false) {
+      status = 'strict-error';
+    } else if (strictResult.isValid === true) {
+      status = softValidValue === false ? 'soft-warning' : 'valid';
+    }
 
     _meta[fieldId] = {
       strictValid:        strictResult.isValid,
       strictErrorMessage: strictResult.message ?? '',
       softValid:          softValidValue,
       softViolation:      softResult.isViolation ? softResult.message : '',
+      status,
       exceptionRequested,
       rationale,
       rationaleValid,

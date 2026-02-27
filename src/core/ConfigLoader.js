@@ -39,7 +39,11 @@ export class ConfigurationError extends Error {
 // ── Validation ────────────────────────────────────────────────────────────
 
 const ALLOWED_RULE_TYPES = ['strict', 'soft', 'system'];
-const REQUIRED_PROPERTIES = ['field', 'ruleType', 'validationType', 'errorMessage'];
+
+// v2 schema uses `type` (was `ruleType`). `validationType` is no longer
+// required at the config layer — the validator key lives in validation.custom
+// and is resolved by ValidationEngine at runtime.
+const REQUIRED_PROPERTIES = ['field', 'type', 'errorMessage'];
 
 /**
  * Validates a single rule object. Throws ConfigurationError with a
@@ -61,14 +65,14 @@ function validateRule(rule, index) {
     }
   }
 
-  if (!ALLOWED_RULE_TYPES.includes(rule.ruleType)) {
+  if (!ALLOWED_RULE_TYPES.includes(rule.type)) {
     throw new ConfigurationError(
-      `[ConfigLoader] ${location} has unrecognised ruleType "${rule.ruleType}". ` +
+      `[ConfigLoader] ${location} has unrecognised type "${rule.type}". ` +
       `Allowed values: ${ALLOWED_RULE_TYPES.join(', ')}.`
     );
   }
 
-  if (rule.ruleType === 'soft' && rule.exceptionAllowed === undefined) {
+  if (rule.type === 'soft' && rule.exceptionAllowed === undefined) {
     throw new ConfigurationError(
       `[ConfigLoader] ${location} is a soft rule and must declare "exceptionAllowed" (true or false).`
     );

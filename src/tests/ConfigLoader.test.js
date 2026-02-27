@@ -1,33 +1,35 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createConfigLoader, ConfigurationError } from '../core/ConfigLoader.js';
 
-// ── Fixtures ────────────────────────────────────────────────────────────────
+// ── Fixtures — v2 schema ─────────────────────────────────────────────────────
+//
+// Schema v2 uses `type` (not `ruleType`), `validation.custom` (not `validationType`),
+// `constraints` (not `parameters`), and `rationale` object for soft rules.
 
 const MINIMAL_VALID_RULE = {
   field: 'fullName',
-  ruleType: 'strict',
-  validationType: 'minLengthNoNumbers',
-  parameters: { minLength: 2 },
+  type: 'strict',
+  validation: { custom: 'minLengthNoNumbers' },
+  constraints: { minLength: 2 },
   errorMessage: 'Full name must be at least 2 characters.',
 };
 
 const VALID_SOFT_RULE = {
   field: 'dateOfBirth',
-  ruleType: 'soft',
-  validationType: 'ageRangeExtended',
-  parameters: { minAge: 36, maxAge: 40 },
+  type: 'soft',
+  validation: { custom: 'ageBetween' },
+  constraints: { min: 36, max: 40 },
   errorMessage: 'Age is between 36 and 40. Exception required.',
   exceptionAllowed: true,
-  rationaleKeywords: ['experience', 'returning'],
+  rationale: { minLength: 30, keywords: ['experience', 'returning'] },
 };
 
 const VALID_SYSTEM_RULE = {
   field: 'offerLetterSent',
-  ruleType: 'system',
-  validationType: 'dependsOnFieldValue',
-  parameters: { dependsOn: 'interviewStatus', allowedWhen: ['cleared'] },
+  type: 'system',
+  validation: { custom: 'interviewOfferDependency', dependencies: ['interviewStatus'] },
+  constraints: { dependsOn: 'interviewStatus', allowedWhen: ['cleared'] },
   errorMessage: 'Offer letter can only be sent when status is Cleared.',
-  dependencies: ['interviewStatus'],
 };
 
 function makeLoader(data) {
@@ -35,7 +37,7 @@ function makeLoader(data) {
 }
 
 function makeValidPayload(rules = [MINIMAL_VALID_RULE]) {
-  return { _version: '1.0.0', rules };
+  return { _version: '2.0.0', rules };
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -79,7 +81,7 @@ describe('ConfigLoader', () => {
       expect(loader.getRules()).toHaveLength(1);
     });
 
-    it('accepts all three ruleTypes (strict, soft, system) in the same payload', async () => {
+    it('accepts all three types (strict, soft, system) in the same payload', async () => {
       const loader = createConfigLoader(makeLoader(makeValidPayload([
         MINIMAL_VALID_RULE,
         VALID_SOFT_RULE,
@@ -92,6 +94,14 @@ describe('ConfigLoader', () => {
       const loader = createConfigLoader(makeLoader(makeValidPayload([])));
       await loader.load();
       expect(loader.getRules()).toEqual([]);
+    });
+
+    it('accepts a soft rule that includes a rationale object', async () => {
+      const loader = createConfigLoader(makeLoader(makeValidPayload([VALID_SOFT_RULE])));
+      await loader.load();
+      const rules = loader.getRules();
+      expect(rules[0].rationale).toBeDefined();
+      expect(rules[0].rationale.keywords).toContain('experience');
     });
   });
 
@@ -119,7 +129,7 @@ describe('ConfigLoader', () => {
       // dateOfBirth appears in VALID_SOFT_RULE
       const rules = loader.getRuleByField('dateOfBirth');
       expect(rules).toHaveLength(1);
-      expect(rules[0].ruleType).toBe('soft');
+      expect(rules[0].type).toBe('soft');
     });
 
     it('returns an empty array for a field that has no rules', () => {
@@ -129,7 +139,7 @@ describe('ConfigLoader', () => {
     it('returns rules for a system-type entry', () => {
       const rules = loader.getRuleByField('offerLetterSent');
       expect(rules).toHaveLength(1);
-      expect(rules[0].ruleType).toBe('system');
+      expect(rules[0].type).toBe('system');
     });
   });
 
@@ -138,13 +148,13 @@ describe('ConfigLoader', () => {
   describe('load() throws ConfigurationError on invalid structure', () => {
 
     it('throws when the top-level "rules" array is missing', async () => {
-      const loader = createConfigLoader(makeLoader({ _version: '1.0.0' }));
+      const loader = createConfigLoader(makeLoader({ _version: '2.0.0' }));
       await expect(loader.load()).rejects.toThrow(ConfigurationError);
       await expect(loader.load()).rejects.toThrow('"rules" array is missing');
     });
 
     it('throws when "rules" is not an array', async () => {
-      const loader = createConfigLoader(makeLoader({ _version: '1.0.0', rules: 'bad' }));
+      const loader = createConfigLoader(makeLoader({ _version: '2.0.0', rules: 'bad' }));
       await expect(loader.load()).rejects.toThrow(ConfigurationError);
       await expect(loader.load()).rejects.toThrow('"rules" array is missing');
     });
@@ -157,27 +167,19 @@ describe('ConfigLoader', () => {
       await expect(loader.load()).rejects.toThrow('"field"');
     });
 
-    it('throws when a rule is missing the "ruleType" property', async () => {
+    it('throws when a rule is missing the "type" property', async () => {
       const bad = { ...MINIMAL_VALID_RULE };
-      delete bad.ruleType;
+      delete bad.type;
       const loader = createConfigLoader(makeLoader(makeValidPayload([bad])));
       await expect(loader.load()).rejects.toThrow(ConfigurationError);
-      await expect(loader.load()).rejects.toThrow('"ruleType"');
+      await expect(loader.load()).rejects.toThrow('"type"');
     });
 
-    it('throws when a rule has an unrecognised ruleType', async () => {
-      const bad = { ...MINIMAL_VALID_RULE, ruleType: 'phantom' };
+    it('throws when a rule has an unrecognised type', async () => {
+      const bad = { ...MINIMAL_VALID_RULE, type: 'phantom' };
       const loader = createConfigLoader(makeLoader(makeValidPayload([bad])));
       await expect(loader.load()).rejects.toThrow(ConfigurationError);
-      await expect(loader.load()).rejects.toThrow('ruleType');
-    });
-
-    it('throws when a rule is missing the "validationType" property', async () => {
-      const bad = { ...MINIMAL_VALID_RULE };
-      delete bad.validationType;
-      const loader = createConfigLoader(makeLoader(makeValidPayload([bad])));
-      await expect(loader.load()).rejects.toThrow(ConfigurationError);
-      await expect(loader.load()).rejects.toThrow('"validationType"');
+      await expect(loader.load()).rejects.toThrow('type');
     });
 
     it('throws when a rule is missing the "errorMessage" property', async () => {
@@ -204,7 +206,7 @@ describe('ConfigLoader', () => {
     });
 
     it('includes the field name in the error message when available', async () => {
-      const bad = { ...MINIMAL_VALID_RULE, ruleType: 'invalid' };
+      const bad = { ...MINIMAL_VALID_RULE, type: 'invalid' };
       const loader = createConfigLoader(makeLoader(makeValidPayload([bad])));
       await expect(loader.load()).rejects.toThrow('fullName');
     });

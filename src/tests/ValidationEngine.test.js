@@ -1,91 +1,90 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ValidationEngine } from '../core/ValidationEngine.js';
 
-// ── Rule Fixtures ────────────────────────────────────────────────────────────
-// Minimal rule objects that mirror the real rules.json structure.
+// ── Rule Fixtures (v2 schema) ─────────────────────────────────────────────────
+// Minimal rule objects that mirror the new rules.json structure.
 // Tests inject these directly — no ConfigLoader dependency.
+//
+// v2 schema: type (not ruleType), validation.custom (not validationType),
+//            constraints (not parameters).
 
 const R = {
   fullName: {
-    field: 'fullName', ruleType: 'strict',
-    validationType: 'minLengthNoNumbers',
-    parameters: { minLength: 2 },
+    field: 'fullName', type: 'strict',
+    validation: { custom: 'minLengthNoNumbers' },
+    constraints: { minLength: 2 },
     errorMessage: 'Full name must be at least 2 characters and must not contain numbers.',
   },
   emailFormat: {
-    field: 'email', ruleType: 'strict',
-    validationType: 'emailFormat',
-    parameters: {},
+    field: 'email', type: 'strict',
+    validation: { custom: 'isEmail' },
+    constraints: {},
     errorMessage: 'Enter a valid email address.',
   },
   emailUniqueness: {
-    field: 'email', ruleType: 'strict',
-    validationType: 'emailUniqueness',
-    parameters: { registryKey: 'ag_test_emails' },
+    field: 'email', type: 'strict',
+    validation: { custom: 'emailUniqueness' },
+    constraints: { registryKey: 'ag_test_emails' },
     errorMessage: 'This email has already been registered.',
   },
   phone: {
-    field: 'phone', ruleType: 'strict',
-    validationType: 'indianMobile',
-    parameters: { digitCount: 10, allowedPrefixes: ['6', '7', '8', '9'] },
+    field: 'phone', type: 'strict',
+    validation: { custom: 'isIndianPhone' },
+    constraints: { digitCount: 10, allowedPrefixes: ['6', '7', '8', '9'] },
     errorMessage: 'Phone must be a 10-digit Indian mobile starting with 6–9.',
   },
   aadhaar: {
-    field: 'aadhaar', ruleType: 'strict',
-    validationType: 'aadhaarFormat',
-    parameters: { digitCount: 12 },
+    field: 'aadhaar', type: 'strict',
+    validation: { custom: 'isAadhaar' },
+    constraints: { digitCount: 12 },
     errorMessage: 'Aadhaar must be exactly 12 digits.',
   },
   qualification: {
-    field: 'qualification', ruleType: 'strict',
-    validationType: 'allowedValue',
-    parameters: { allowedValues: ['ssc', 'hsc', 'diploma', 'bachelors', 'masters', 'phd'] },
+    field: 'qualification', type: 'strict',
+    validation: { custom: 'allowedValue' },
+    constraints: { allowedValues: ['ssc', 'hsc', 'diploma', 'bachelors', 'masters', 'phd'] },
     errorMessage: 'Select a valid qualification.',
   },
   score: {
-    field: 'score', ruleType: 'strict',
-    validationType: 'integerRange',
-    parameters: { min: 0, max: 100 },
+    field: 'score', type: 'strict',
+    validation: { custom: 'integerRange' },
+    constraints: { min: 0, max: 100 },
     errorMessage: 'Score must be 0–100.',
   },
   interviewAllowed: {
-    field: 'interviewStatus', ruleType: 'strict',
-    validationType: 'allowedValue',
-    parameters: { allowedValues: ['cleared', 'waitlisted', 'rejected'] },
+    field: 'interviewStatus', type: 'strict',
+    validation: { custom: 'allowedValue' },
+    constraints: { allowedValues: ['cleared', 'waitlisted', 'rejected'] },
     errorMessage: 'Select a valid interview status.',
   },
   interviewBlock: {
-    field: 'interviewStatus', ruleType: 'system',
-    validationType: 'blocksSubmissionWhenValue',
-    parameters: { blockedValues: ['rejected'] },
+    field: 'interviewStatus', type: 'system',
+    validation: { custom: 'blocksSubmissionWhenValue' },
+    constraints: { blockedValues: ['rejected'] },
     errorMessage: 'Cannot submit a rejected application.',
   },
   percentageScore: {
-    field: 'percentageOrCgpa', ruleType: 'strict',
-    validationType: 'scoreByGradingMode',
-    parameters: {
+    field: 'percentageOrCgpa', type: 'strict',
+    validation: { custom: 'scoreByGradingMode', dependencies: ['gradingMode'] },
+    constraints: {
       percentage: { min: 0, max: 100 },
       cgpa:       { min: 0, max: 10  },
     },
-    dependencies: ['gradingMode'],
     errorMessage: 'Enter a valid score.',
   },
   offerLetterDep: {
-    field: 'offerLetterSent', ruleType: 'system',
-    validationType: 'dependsOnFieldValue',
-    parameters: {
+    field: 'offerLetterSent', type: 'system',
+    validation: { custom: 'interviewOfferDependency', dependencies: ['interviewStatus'] },
+    constraints: {
       dependsOn: 'interviewStatus',
       allowedWhen: ['cleared'],
-      blockedWhen: ['waitlisted', 'rejected'],
     },
-    dependencies: ['interviewStatus'],
     errorMessage: 'Offer letter can only be sent when status is Cleared.',
   },
   blocksOfferWhenRejected: {
-    field: 'interviewStatus', ruleType: 'system',
-    validationType: 'blocksFieldWhenValue',
-    parameters: { blockedField: 'offerLetterSent', blockedFieldValue: true, whenValue: 'rejected' },
-    dependencies: ['offerLetterSent'],
+    field: 'interviewStatus', type: 'system',
+    validation: { custom: 'blocksFieldWhenValue', dependencies: ['offerLetterSent'] },
+    constraints: { blockedField: 'offerLetterSent', blockedFieldValue: true, whenValue: 'rejected' },
     errorMessage: 'Offer letter cannot be issued to a rejected candidate.',
   },
 };
@@ -144,9 +143,9 @@ describe('ValidationEngine', () => {
     });
   });
 
-  // ── emailFormat ──────────────────────────────────────────────────────────
+  // ── isEmail ──────────────────────────────────────────────────────────────
 
-  describe('emailFormat', () => {
+  describe('isEmail (emailFormat)', () => {
     it('rejects empty string', () => {
       expect(validate('email', '', [R.emailFormat]).isValid).toBe(false);
     });
@@ -202,9 +201,9 @@ describe('ValidationEngine', () => {
     });
   });
 
-  // ── indianMobile ─────────────────────────────────────────────────────────
+  // ── isIndianPhone ────────────────────────────────────────────────────────
 
-  describe('indianMobile (phone)', () => {
+  describe('isIndianPhone (phone)', () => {
     it('rejects empty string', () => {
       expect(validate('phone', '', [R.phone]).isValid).toBe(false);
     });
@@ -234,9 +233,9 @@ describe('ValidationEngine', () => {
     });
   });
 
-  // ── aadhaarFormat ────────────────────────────────────────────────────────
+  // ── isAadhaar ────────────────────────────────────────────────────────────
 
-  describe('aadhaarFormat', () => {
+  describe('isAadhaar (aadhaarFormat)', () => {
     it('rejects empty string', () => {
       expect(validate('aadhaar', '', [R.aadhaar]).isValid).toBe(false);
     });
@@ -368,9 +367,9 @@ describe('ValidationEngine', () => {
     });
   });
 
-  // ── dependsOnFieldValue (offerLetterSent) ────────────────────────────────
+  // ── interviewOfferDependency (offerLetterSent) ───────────────────────────
 
-  describe('dependsOnFieldValue (offerLetterSent)', () => {
+  describe('interviewOfferDependency (offerLetterSent)', () => {
     it('accepts true when interviewStatus is cleared', () => {
       expect(validate('offerLetterSent', true, [R.offerLetterDep], { interviewStatus: 'cleared' }).isValid).toBe(true);
     });
@@ -428,7 +427,7 @@ describe('ValidationEngine', () => {
     });
 
     it('skips soft rules — only evaluates strict and system', () => {
-      const softOnly = { ...R.qualification, ruleType: 'soft', exceptionAllowed: true };
+      const softOnly = { ...R.qualification, type: 'soft', exceptionAllowed: true };
       expect(validate('qualification', '', [softOnly]).isValid).toBe(true);
     });
   });

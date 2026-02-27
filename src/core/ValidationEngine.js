@@ -5,22 +5,27 @@
  * This module contains no rule data — all thresholds, allowed values, and
  * dependency conditions are read from the rule objects passed in.
  *
+ * Schema v2.0.0 — rules now use:
+ *   rule.type              (was rule.ruleType)
+ *   rule.validation.custom (was rule.validationType)
+ *   rule.constraints       (was rule.parameters)
+ *   rule.rationale         (was rule.rationaleKeywords + rule.parameters.rationaleMinLength)
+ *
  * Design decisions:
  *
  * - Pure module (no singleton state, no imports from ConfigLoader).
  *   All rules are injected as parameters. This makes every function
  *   trivially testable with fixture data.
  *
- * - Only 'strict' and 'system' rules are evaluated. Soft rules are the
- *   responsibility of the SoftRuleEngine (phase 4).
+ * - Only 'strict' and 'system' rules are evaluated by validateField().
+ *   Soft rules are the responsibility of validateSoftRules().
  *
  * - validateField() returns the FIRST failure encountered. This prevents
  *   the UI from showing multiple errors on a single field simultaneously.
  *
  * - getDependentsOf() is the cascade contract: FormStateManager calls this
  *   after every setField() to find which other fields need re-evaluation.
- *   The dependency graph is entirely config-driven — no field names are
- *   hardcoded here.
+ *   Dependencies are declared inside rule.validation.dependencies (array).
  */
 
 import {
@@ -45,173 +50,253 @@ const ENFORCED_RULE_TYPES = new Set(['strict', 'system']);
 
 // ── Validator dispatch map ────────────────────────────────────────────────
 //
-// Each key is a validationType string from rules.json.
-// Each value is (value, params, fullState) => { isValid: boolean, message: null }
-// 'message: null' signals a passing result; failing results carry the rule's
-// errorMessage (set by the caller, not the validator itself).
+// Each key is a validation.custom string from rules.json.
+// Each value is (value, constraints, fullState) => boolean
+// true = passes validation; false = fails.
 
 const VALIDATORS = {
 
-  minLengthNoNumbers(value, params) {
-    return isMinLengthNoNumbers(String(value ?? ''), params.minLength);
+  // ── String / identity validators ──────────────────────────────────────
+
+  minLengthNoNumbers(value, constraints) {
+    return isMinLengthNoNumbers(String(value ?? ''), constraints.minLength);
   },
 
+  /** v2 name: isEmail (was emailFormat) */
+  isEmail(value) {
+    return isEmailFormat(String(value ?? ''));
+  },
+
+  /** Backward-compat alias */
   emailFormat(value) {
     return isEmailFormat(String(value ?? ''));
   },
 
-  emailUniqueness(value, params) {
-    return isEmailUnique(String(value ?? ''), params.registryKey);
+  emailUniqueness(value, constraints) {
+    return isEmailUnique(String(value ?? ''), constraints.registryKey);
   },
 
-  indianMobile(value, params) {
-    return isIndianMobile(value, params.digitCount, params.allowedPrefixes);
+  /** v2 name: isIndianPhone (was indianMobile) */
+  isIndianPhone(value, constraints) {
+    return isIndianMobile(value, constraints.digitCount, constraints.allowedPrefixes);
   },
 
-  aadhaarFormat(value, params) {
-    return isAadhaarFormat(value, params.digitCount);
+  /** Backward-compat alias */
+  indianMobile(value, constraints) {
+    return isIndianMobile(value, constraints.digitCount, constraints.allowedPrefixes);
   },
 
-  allowedValue(value, params) {
-    return isAllowedValue(value, params.allowedValues);
+  /** v2 name: isAadhaar (was aadhaarFormat) */
+  isAadhaar(value, constraints) {
+    return isAadhaarFormat(value, constraints.digitCount);
   },
 
-  integerRange(value, params) {
-    return isIntegerRange(value, params.min, params.max);
+  /** Backward-compat alias */
+  aadhaarFormat(value, constraints) {
+    return isAadhaarFormat(value, constraints.digitCount);
   },
 
-  scoreByGradingMode(value, params, fullState) {
+  allowedValue(value, constraints) {
+    return isAllowedValue(value, constraints.allowedValues);
+  },
+
+  integerRange(value, constraints) {
+    return isIntegerRange(value, constraints.min, constraints.max);
+  },
+
+  scoreByGradingMode(value, constraints, fullState) {
     const mode = fullState.gradingMode || 'percentage';
-    const range = params[mode];
+    const range = constraints[mode];
     if (!range) return false;
-    // CGPA can be decimal; percentage can also be decimal
     return isNumericRange(value, range.min, range.max);
   },
 
+  // ── System / cross-field validators ──────────────────────────────────
+
   /**
-   * System rule: this field value can only be set to certain values based
-   * on the value of another (dependency) field.
-   *
-   * Logic: if value is "truthy" (the user has made a selection), check
-   * whether the dependency field's current value permits it.
-   * Empty / unset values are always allowed — the required-field check
-   * is handled by the field's own strict rule.
+   * v2 name: interviewOfferDependency (was dependsOnFieldValue)
+   * Field value can only be set to "true" when the dependency field
+   * has one of the allowed values.
    */
-  dependsOnFieldValue(value, params, fullState) {
-    // Only enforce when user has actively set the field
+  interviewOfferDependency(value, constraints, fullState) {
     if (value === '' || value === null || value === undefined) return true;
-    // Only block the "positive" action (true = offer sent)
     if (value !== true && value !== 'true') return true;
+    const dependsOnValue = fullState[constraints.dependsOn];
+    return constraints.allowedWhen.includes(dependsOnValue);
+  },
 
-    const dependsOnValue = fullState[params.dependsOn];
-    return params.allowedWhen.includes(dependsOnValue);
+  /** Backward-compat alias */
+  dependsOnFieldValue(value, constraints, fullState) {
+    if (value === '' || value === null || value === undefined) return true;
+    if (value !== true && value !== 'true') return true;
+    const dependsOnValue = fullState[constraints.dependsOn];
+    return constraints.allowedWhen.includes(dependsOnValue);
   },
 
   /**
-   * System rule: when THIS field's value is in the blockedValues list,
+   * When THIS field's value is in the blockedValues list,
    * the whole form submission is blocked.
-   *
-   * The field value itself is semantically valid (e.g. 'rejected' is a
-   * legitimate selection), but the business rule says it prevents submission.
    */
-  blocksSubmissionWhenValue(value, params) {
-    return !params.blockedValues.includes(value);
+  blocksSubmissionWhenValue(value, constraints) {
+    return !constraints.blockedValues.includes(value);
   },
 
   /**
-   * System rule: when THIS field's value equals whenValue, the blockedField
+   * When THIS field's value equals whenValue, the blockedField
    * must not equal blockedFieldValue.
-   *
-   * Evaluated on the SOURCE field (e.g. interviewStatus). Returns false only
-   * when the combination is a compliance violation.
    */
-  blocksFieldWhenValue(value, params, fullState) {
-    if (value !== params.whenValue) return true;
-    return fullState[params.blockedField] !== params.blockedFieldValue;
+  blocksFieldWhenValue(value, constraints, fullState) {
+    if (value !== constraints.whenValue) return true;
+    return fullState[constraints.blockedField] !== constraints.blockedFieldValue;
   },
 
-  // Strict implementations for ageRange and yearRange
-  ageRange(value, params) {
-    return isAgeInRange(value, params.minAge, params.maxAge);
+  // ── Strict range validators ───────────────────────────────────────────
+
+  ageRange(value, constraints) {
+    return isAgeInRange(value, constraints.minAge, constraints.maxAge);
   },
 
-  yearRange(value, params) {
-    const maxYear = params.maxYear ?? new Date().getFullYear();
-    return isIntegerRange(value, params.minYear, maxYear);
+  yearRange(value, constraints) {
+    const maxYear = constraints.maxYear ?? new Date().getFullYear();
+    return isIntegerRange(value, constraints.minYear, maxYear);
   },
 
-  // Soft-only types — not evaluated here, return true to remain neutral
+  // ── Soft-only types — return true to stay neutral in strict pass ──────
+  ageBetween:                () => true,
   ageRangeExtended:          () => true,
   recentGraduation:          () => true,
   minimumAcademicThreshold:  () => true,
   minimumScreeningThreshold: () => true,
+  percentageOrCgpaThreshold: () => true,
 };
 
 // ── Soft validator dispatch map ───────────────────────────────────────────
 //
-// Keyed by validationType (soft rules only).
-// Each handler returns true when the VIOLATION CONDITION is present,
+// Keyed by validation.custom (soft rules only).
+// Returns true when the VIOLATION CONDITION is present,
 // false when the value is acceptable or empty.
 
 const SOFT_VALIDATORS = {
+
   /**
-   * Age is in the extended (amber) range [minAge, maxAge].
-   * The strict ageRange rule handles the hard block — this catches the
-   * amber zone above the normal range.
+   * v2 name: ageBetween — violation when age is OUTSIDE [min, max].
+   * Used for dateOfBirth soft rule (e.g. must be 18–35).
    */
-  ageRangeExtended(value, params) {
-    return isAgeInRange(value, params.minAge, params.maxAge);
+  ageBetween(value, constraints) {
+    if (!value) return false;
+    return !isAgeInRange(value, constraints.min, constraints.max);
   },
 
   /**
-   * Graduation year is within recentYearsThreshold years of current year.
-   * A threshold of 0 means only the current calendar year triggers.
+   * Legacy: ageRange (soft) — same semantics as ageBetween.
+   * Kept for backward compat with old-format test fixtures.
    */
-  recentGraduation(value, params) {
-    return isGraduationYearRecent(value, params.recentYearsThreshold ?? 0);
+  ageRange(value, constraints) {
+    if (!value) return false;
+    return !isAgeInRange(value, constraints.minAge, constraints.maxAge);
   },
 
   /**
-   * Academic score is BELOW the minimum threshold for the active grading mode.
+   * ageRangeExtended — violation when age IS in the extended amber zone.
+   * Legacy validator; kept for test fixtures.
    */
-  minimumAcademicThreshold(value, params, fullState) {
+  ageRangeExtended(value, constraints) {
+    return isAgeInRange(value, constraints.minAge, constraints.maxAge);
+  },
+
+  /**
+   * yearRange — violation when graduation year is OUTSIDE [minYear, maxYear].
+   */
+  yearRange(value, constraints) {
+    if (value === '' || value === null || value === undefined) return false;
+    const maxYear = constraints.maxYear ?? new Date().getFullYear();
+    return !isIntegerRange(value, constraints.minYear, maxYear);
+  },
+
+  /**
+   * recentGraduation — violation when year is within recentYearsThreshold
+   * of the current calendar year.
+   */
+  recentGraduation(value, constraints) {
+    return isGraduationYearRecent(value, constraints.recentYearsThreshold ?? 0);
+  },
+
+  /**
+   * minimumAcademicThreshold (legacy name) — violation when academic score
+   * is BELOW the minimum threshold for the active grading mode.
+   */
+  minimumAcademicThreshold(value, constraints, fullState) {
     if (value === '' || value === null || value === undefined) return false;
     const passes = isAboveMinimumAcademic(
       value,
       fullState.gradingMode || 'percentage',
-      params.percentageMinimum,
-      params.cgpaMinimum,
+      constraints.percentageMinimum,
+      constraints.cgpaMinimum,
     );
-    return !passes; // violation = did NOT pass threshold
+    return !passes;
   },
 
   /**
-   * Screening test score is BELOW the minimum passing score.
+   * v2 name: percentageOrCgpaThreshold — same as minimumAcademicThreshold.
    */
-  minimumScreeningThreshold(value, params) {
+  percentageOrCgpaThreshold(value, constraints, fullState) {
     if (value === '' || value === null || value === undefined) return false;
-    return !isAboveMinimumScore(value, params.minimumPassingScore);
+    const passes = isAboveMinimumAcademic(
+      value,
+      fullState.gradingMode || 'percentage',
+      constraints.percentageMinimum,
+      constraints.cgpaMinimum,
+    );
+    return !passes;
   },
 
   /**
-   * Age is OUTSIDE the allowed range [minAge, maxAge].
-   * Used when dateOfBirth is treated as a soft rule.
+   * minimumScreeningThreshold — violation when screening score is below
+   * the minimum passing score.
    */
-  ageRange(value, params) {
-    if (!value) return false;
-    return !isAgeInRange(value, params.minAge, params.maxAge);
-  },
-
-  /**
-   * Graduation year is OUTSIDE the allowed integer range [minYear, maxYear].
-   * Used when graduationYear is treated as a soft rule.
-   */
-  yearRange(value, params) {
+  minimumScreeningThreshold(value, constraints) {
     if (value === '' || value === null || value === undefined) return false;
-    const maxYear = params.maxYear ?? new Date().getFullYear();
-    return !isIntegerRange(value, params.minYear, maxYear);
+    return !isAboveMinimumScore(value, constraints.minimumPassingScore);
   },
 };
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Reads the validator key from a rule, supporting both schema versions.
+ * v2: rule.validation.custom
+ * v1 fallback: rule.validationType
+ */
+function _getValidatorKey(rule) {
+  return rule.validation?.custom ?? rule.validationType;
+}
+
+/**
+ * Reads the constraints object from a rule, supporting both schema versions.
+ * v2: rule.constraints
+ * v1 fallback: rule.parameters
+ */
+function _getConstraints(rule) {
+  return rule.constraints ?? rule.parameters ?? {};
+}
+
+/**
+ * Reads the rule type, supporting both schema versions.
+ * v2: rule.type
+ * v1 fallback: rule.ruleType
+ */
+function _getRuleType(rule) {
+  return rule.type ?? rule.ruleType;
+}
+
+/**
+ * Reads the dependencies array from a rule, supporting both schema versions.
+ * v2: rule.validation.dependencies
+ * v1 fallback: rule.dependencies (top-level)
+ */
+function _getDependencies(rule) {
+  return rule.validation?.dependencies ?? rule.dependencies ?? [];
+}
 
 // ── Public API ────────────────────────────────────────────────────────────
 
@@ -224,17 +309,20 @@ export const ValidationEngine = {
    * @param {string}   fieldId     - Field identifier
    * @param {*}        value       - Current field value
    * @param {object}   fullState   - Complete form state (for cross-field rules)
-   * @param {object[]} fieldRules  - All rule objects for this field (any ruleType)
+   * @param {object[]} fieldRules  - All rule objects for this field (any type)
    * @returns {{ isValid: boolean, message: string | null }}
    */
   validateField(fieldId, value, fullState, fieldRules) {
-    const enforced = fieldRules.filter((r) => ENFORCED_RULE_TYPES.has(r.ruleType));
+    const enforced = fieldRules.filter(
+      (r) => ENFORCED_RULE_TYPES.has(_getRuleType(r))
+    );
 
     for (const rule of enforced) {
-      const handler = VALIDATORS[rule.validationType];
+      const key     = _getValidatorKey(rule);
+      const handler = VALIDATORS[key];
       if (!handler) continue;
 
-      const passed = handler(value, rule.parameters ?? {}, fullState);
+      const passed = handler(value, _getConstraints(rule), fullState);
       if (!passed) {
         return { isValid: false, message: rule.errorMessage };
       }
@@ -255,11 +343,8 @@ export const ValidationEngine = {
     const dependents = new Set();
 
     allRules.forEach((rule) => {
-      if (
-        Array.isArray(rule.dependencies) &&
-        rule.dependencies.includes(fieldId) &&
-        rule.field !== fieldId
-      ) {
+      const deps = _getDependencies(rule);
+      if (Array.isArray(deps) && deps.includes(fieldId) && rule.field !== fieldId) {
         dependents.add(rule.field);
       }
     });
@@ -295,10 +380,11 @@ export const ValidationEngine = {
    * @returns {{ isViolation: boolean, message: string | null }}
    */
   evaluateSoftRule(value, fullState, rule) {
-    const handler = SOFT_VALIDATORS[rule.validationType];
+    const key     = _getValidatorKey(rule);
+    const handler = SOFT_VALIDATORS[key];
     if (!handler) return { isViolation: false, message: null };
 
-    const violated = handler(value, rule.parameters ?? {}, fullState);
+    const violated = handler(value, _getConstraints(rule), fullState);
     return {
       isViolation: violated,
       message: violated ? rule.errorMessage : null,
@@ -316,7 +402,7 @@ export const ValidationEngine = {
    * @returns {{ isViolation: boolean, message: string | null, rule: object | null }}
    */
   validateSoftRules(fieldId, value, fullState, fieldRules) {
-    const softRules = fieldRules.filter((r) => r.ruleType === 'soft');
+    const softRules = fieldRules.filter((r) => _getRuleType(r) === 'soft');
 
     for (const rule of softRules) {
       const result = this.evaluateSoftRule(value, fullState, rule);
@@ -330,7 +416,8 @@ export const ValidationEngine = {
 
   /**
    * Validates a rationale string against the rule that triggered the soft violation.
-   * The rule supplies rationaleMinLength (from parameters) and rationaleKeywords.
+   * The rule supplies rationale.minLength and rationale.keywords (v2 schema),
+   * with fallback to legacy parameters.rationaleMinLength and rationaleKeywords.
    *
    * @param {string}       rationale - User-entered rationale text
    * @param {object | null} rule     - The violated soft rule object
@@ -338,8 +425,10 @@ export const ValidationEngine = {
    */
   validateRationale(rationale, rule) {
     if (!rule) return { isValid: false };
-    const minLength = rule.parameters?.rationaleMinLength ?? 30;
-    const keywords  = rule.rationaleKeywords ?? [];
+    // v2 schema: rule.rationale.minLength / rule.rationale.keywords
+    // v1 fallback: rule.parameters.rationaleMinLength / rule.rationaleKeywords
+    const minLength = rule.rationale?.minLength ?? rule.parameters?.rationaleMinLength ?? 30;
+    const keywords  = rule.rationale?.keywords  ?? rule.rationaleKeywords ?? [];
     return { isValid: isValidRationale(rationale, minLength, keywords) };
   },
 
@@ -360,24 +449,42 @@ export const ValidationEngine = {
 
   /**
    * Returns true when the form is eligible for submission:
-   *   - Every field has strictValid === true  (no hard blocks, no unvalidated fields)
-   *   - Every field with a soft violation (softValid === false) has been properly
-   *     overridden: exceptionRequested === true AND rationaleValid === true
+   *   - Every field has strictValid === true  (no hard blocks)
+   *   - Every field with a soft violation has been properly overridden
    *
    * @param {object} metaMap - The full per-field meta map from FormStateManager
    * @returns {boolean}
    */
   isFormEligibleForSubmission(metaMap) {
     for (const m of Object.values(metaMap)) {
-      // Strict gate: every field must be hard-valid
       if (m.strictValid !== true) return false;
-
-      // Soft gate: violations must be properly overridden
       if (m.softValid === false) {
         if (!m.exceptionRequested || !m.rationaleValid) return false;
       }
     }
     return true;
+  },
+
+  /**
+   * Computes the eligibility status of a submitted application from its meta map.
+   *
+   * "Blocked"        — one or more fields have strictValid === false
+   * "Flagged"        — all strict fields pass but active exception count exceeds 2
+   * "With Exceptions" — 1–2 active valid exceptions, no strict failures
+   * "Clean"          — all strict valid, no soft violations
+   *
+   * @param {object} metaMap - The full per-field meta map
+   * @returns {"Clean" | "With Exceptions" | "Flagged" | "Blocked"}
+   */
+  computeEligibilityStatus(metaMap) {
+    for (const m of Object.values(metaMap)) {
+      if (m.strictValid === false) return 'Blocked';
+    }
+
+    const exceptionCount = this.computeExceptionCount(metaMap);
+    if (exceptionCount > 2) return 'Flagged';
+    if (exceptionCount > 0) return 'With Exceptions';
+    return 'Clean';
   },
 
 };

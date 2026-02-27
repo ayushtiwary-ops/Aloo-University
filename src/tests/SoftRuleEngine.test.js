@@ -9,7 +9,8 @@
  *    (evaluateSoftRule, validateSoftRules, validateRationale,
  *     computeExceptionCount, isFormEligibleForSubmission)
  *
- * Rule fixtures mirror rules.json structure; no ConfigLoader dependency.
+ * Rule fixtures use v2 schema (type, validation.custom, constraints, rationale).
+ * No ConfigLoader dependency.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -41,40 +42,44 @@ const GOVERNANCE_KEYWORDS = [
   'waiver granted',
 ];
 
-// ── Rule fixtures ─────────────────────────────────────────────────────────────
+// ── Rule fixtures (v2 schema) ─────────────────────────────────────────────────
+//
+// v2: type (not ruleType), validation.custom (not validationType),
+//     constraints (not parameters), rationale object (not rationaleKeywords
+//     + parameters.rationaleMinLength).
 
 const R = {
   ageRangeExtended: {
-    field: 'dateOfBirth', ruleType: 'soft',
-    validationType: 'ageRangeExtended',
-    parameters: { minAge: 36, maxAge: 40, rationaleMinLength: 30 },
+    field: 'dateOfBirth', type: 'soft',
+    validation: { custom: 'ageRangeExtended' },
+    constraints: { minAge: 36, maxAge: 40 },
     errorMessage: 'Candidate age is in the extended range (36–40). An exception is required.',
     exceptionAllowed: true,
-    rationaleKeywords: GOVERNANCE_KEYWORDS,
+    rationale: { minLength: 30, keywords: GOVERNANCE_KEYWORDS },
   },
   recentGraduation: {
-    field: 'graduationYear', ruleType: 'soft',
-    validationType: 'recentGraduation',
-    parameters: { recentYearsThreshold: 0, rationaleMinLength: 30 },
+    field: 'graduationYear', type: 'soft',
+    validation: { custom: 'recentGraduation' },
+    constraints: { recentYearsThreshold: 0 },
     errorMessage: 'Candidate graduated in the current year. Verification is required.',
     exceptionAllowed: true,
-    rationaleKeywords: GOVERNANCE_KEYWORDS,
+    rationale: { minLength: 30, keywords: GOVERNANCE_KEYWORDS },
   },
   minimumAcademicThreshold: {
-    field: 'percentageOrCgpa', ruleType: 'soft',
-    validationType: 'minimumAcademicThreshold',
-    parameters: { percentageMinimum: 50, cgpaMinimum: 5.0, rationaleMinLength: 30 },
+    field: 'percentageOrCgpa', type: 'soft',
+    validation: { custom: 'minimumAcademicThreshold' },
+    constraints: { percentageMinimum: 50, cgpaMinimum: 5.0 },
     errorMessage: 'Academic score is below the recommended threshold.',
     exceptionAllowed: true,
-    rationaleKeywords: GOVERNANCE_KEYWORDS,
+    rationale: { minLength: 30, keywords: GOVERNANCE_KEYWORDS },
   },
   minimumScreeningThreshold: {
-    field: 'score', ruleType: 'soft',
-    validationType: 'minimumScreeningThreshold',
-    parameters: { minimumPassingScore: 40, rationaleMinLength: 30 },
+    field: 'score', type: 'soft',
+    validation: { custom: 'minimumScreeningThreshold' },
+    constraints: { minimumPassingScore: 40 },
     errorMessage: 'Screening test score is below the minimum passing threshold of 40.',
     exceptionAllowed: true,
-    rationaleKeywords: GOVERNANCE_KEYWORDS,
+    rationale: { minLength: 30, keywords: GOVERNANCE_KEYWORDS },
   },
 };
 
@@ -396,11 +401,11 @@ describe('ValidationEngine.validateSoftRules(fieldId, value, fullState, fieldRul
     expect(result).toEqual({ isViolation: false, message: null, rule: null });
   });
 
-  it('ignores strict-typed rules — only evaluates ruleType="soft"', () => {
+  it('ignores strict-typed rules — only evaluates type="soft"', () => {
     const strictRule = {
-      field: 'score', ruleType: 'strict',
-      validationType: 'integerRange',
-      parameters: { min: 0, max: 100 },
+      field: 'score', type: 'strict',
+      validation: { custom: 'integerRange' },
+      constraints: { min: 0, max: 100 },
       errorMessage: 'Score 0–100.',
     };
     // Empty value would fail the strict integerRange, but soft evaluator ignores it
@@ -410,9 +415,9 @@ describe('ValidationEngine.validateSoftRules(fieldId, value, fullState, fieldRul
 
   it('ignores system-typed rules', () => {
     const systemRule = {
-      field: 'interviewStatus', ruleType: 'system',
-      validationType: 'blocksSubmissionWhenValue',
-      parameters: { blockedValues: ['rejected'] },
+      field: 'interviewStatus', type: 'system',
+      validation: { custom: 'blocksSubmissionWhenValue' },
+      constraints: { blockedValues: ['rejected'] },
       errorMessage: 'Rejected.',
     };
     const result = ValidationEngine.validateSoftRules('interviewStatus', 'rejected', {}, [systemRule]);
@@ -427,20 +432,20 @@ describe('ValidationEngine.validateSoftRules(fieldId, value, fullState, fieldRul
   it('evaluates multiple soft rules and returns the first violated one', () => {
     // Two soft rules on same field — first one fails
     const r1 = {
-      field: 'score', ruleType: 'soft',
-      validationType: 'minimumScreeningThreshold',
-      parameters: { minimumPassingScore: 40, rationaleMinLength: 30 },
+      field: 'score', type: 'soft',
+      validation: { custom: 'minimumScreeningThreshold' },
+      constraints: { minimumPassingScore: 40 },
       errorMessage: 'Score below 40.',
       exceptionAllowed: true,
-      rationaleKeywords: GOVERNANCE_KEYWORDS,
+      rationale: { minLength: 30, keywords: GOVERNANCE_KEYWORDS },
     };
     const r2 = {
-      field: 'score', ruleType: 'soft',
-      validationType: 'minimumScreeningThreshold',
-      parameters: { minimumPassingScore: 60, rationaleMinLength: 30 },
+      field: 'score', type: 'soft',
+      validation: { custom: 'minimumScreeningThreshold' },
+      constraints: { minimumPassingScore: 60 },
       errorMessage: 'Score below 60.',
       exceptionAllowed: true,
-      rationaleKeywords: GOVERNANCE_KEYWORDS,
+      rationale: { minLength: 30, keywords: GOVERNANCE_KEYWORDS },
     };
     // Value 30 fails r1; only r1 should be returned
     const result = ValidationEngine.validateSoftRules('score', '30', {}, [r1, r2]);
@@ -595,5 +600,58 @@ describe('ValidationEngine.isFormEligibleForSubmission(metaMap)', () => {
       email: { ...passingField(), softValid: null },
     };
     expect(ValidationEngine.isFormEligibleForSubmission(meta)).toBe(true);
+  });
+});
+
+// ── ValidationEngine.computeEligibilityStatus ────────────────────────────────
+
+describe('ValidationEngine.computeEligibilityStatus(metaMap)', () => {
+  function cleanField() {
+    return { strictValid: true, softValid: true, exceptionRequested: false, rationaleValid: false };
+  }
+
+  function blockedField() {
+    return { strictValid: false, softValid: null, exceptionRequested: false, rationaleValid: false };
+  }
+
+  function exceptionField(rationaleValid = true) {
+    return { strictValid: true, softValid: false, exceptionRequested: true, rationaleValid };
+  }
+
+  it('returns "Clean" when all fields are strictly valid with no soft violations', () => {
+    const meta = { fullName: cleanField(), score: cleanField() };
+    expect(ValidationEngine.computeEligibilityStatus(meta)).toBe('Clean');
+  });
+
+  it('returns "Blocked" when any field has strictValid=false', () => {
+    const meta = { fullName: blockedField(), score: cleanField() };
+    expect(ValidationEngine.computeEligibilityStatus(meta)).toBe('Blocked');
+  });
+
+  it('returns "With Exceptions" when 1 field has a valid exception', () => {
+    const meta = { fullName: cleanField(), score: exceptionField(true) };
+    expect(ValidationEngine.computeEligibilityStatus(meta)).toBe('With Exceptions');
+  });
+
+  it('returns "With Exceptions" when 2 fields have valid exceptions', () => {
+    const meta = {
+      fullName: cleanField(),
+      score: exceptionField(true),
+      dateOfBirth: exceptionField(true),
+    };
+    expect(ValidationEngine.computeEligibilityStatus(meta)).toBe('With Exceptions');
+  });
+
+  it('returns "Flagged" when more than 2 fields have valid exceptions', () => {
+    const meta = {
+      fullName: exceptionField(true),
+      score: exceptionField(true),
+      dateOfBirth: exceptionField(true),
+    };
+    expect(ValidationEngine.computeEligibilityStatus(meta)).toBe('Flagged');
+  });
+
+  it('returns "Clean" for an empty meta map', () => {
+    expect(ValidationEngine.computeEligibilityStatus({})).toBe('Clean');
   });
 });
