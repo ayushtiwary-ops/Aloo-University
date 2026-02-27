@@ -488,19 +488,19 @@ describe('ValidationEngine.computeExceptionCount(metaMap)', () => {
     };
   }
 
-  it('returns 0 when no exceptions are active', () => {
+  it('counts any field with softValid===false (no exception request needed)', () => {
     const meta = {
       score: fieldMeta({ softValid: false, softViolation: 'Below threshold', exceptionRequested: false }),
     };
-    expect(ValidationEngine.computeExceptionCount(meta)).toBe(0);
+    expect(ValidationEngine.computeExceptionCount(meta)).toBe(1);
   });
 
-  it('returns 0 when exception is requested but rationale is invalid', () => {
+  it('counts fields with softValid===false regardless of rationaleValid', () => {
     const meta = {
       score: fieldMeta({ softValid: false, softViolation: 'Below threshold',
         exceptionRequested: true, rationale: 'too short', rationaleValid: false }),
     };
-    expect(ValidationEngine.computeExceptionCount(meta)).toBe(0);
+    expect(ValidationEngine.computeExceptionCount(meta)).toBe(1);
   });
 
   it('returns 1 when one field has a valid exception (requested + valid rationale)', () => {
@@ -569,17 +569,17 @@ describe('ValidationEngine.isFormEligibleForSubmission(metaMap)', () => {
     expect(ValidationEngine.isFormEligibleForSubmission(meta)).toBe(false);
   });
 
-  it('returns false when a soft rule is violated and no exception has been requested', () => {
+  it('returns true when strict fields valid even with soft violation (no exception required)', () => {
     const meta = { score: softViolatedField(false) };
-    expect(ValidationEngine.isFormEligibleForSubmission(meta)).toBe(false);
+    expect(ValidationEngine.isFormEligibleForSubmission(meta)).toBe(true);
   });
 
-  it('returns false when exception is requested but rationale is invalid', () => {
+  it('returns true when strict fields valid regardless of exception/rationale state', () => {
     const meta = { score: { ...softViolatedField(false), exceptionRequested: true } };
-    expect(ValidationEngine.isFormEligibleForSubmission(meta)).toBe(false);
+    expect(ValidationEngine.isFormEligibleForSubmission(meta)).toBe(true);
   });
 
-  it('returns true when all strict fields valid and all soft violations have valid exceptions', () => {
+  it('returns true when all strict fields valid (soft violations are auto-processed)', () => {
     const meta = {
       fullName: passingField(),
       score: { ...softViolatedField(true), exceptionRequested: true },

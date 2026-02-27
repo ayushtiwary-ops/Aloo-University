@@ -433,24 +433,22 @@ export const ValidationEngine = {
   },
 
   /**
-   * Counts the number of fields that have an active, VALID exception:
-   *   - softValid === false  (there IS a soft violation)
-   *   - exceptionRequested === true
-   *   - rationaleValid === true
+   * Counts the number of fields with an active soft violation (softValid === false).
+   * Soft violations are auto-processed — no manual exception request required.
    *
    * @param {object} metaMap - The full per-field meta map from FormStateManager
    * @returns {number}
    */
   computeExceptionCount(metaMap) {
     return Object.values(metaMap).filter(
-      (m) => m.softValid === false && m.exceptionRequested && m.rationaleValid
+      (m) => m.softValid === false
     ).length;
   },
 
   /**
    * Returns true when the form is eligible for submission:
    *   - Every field has strictValid === true  (no hard blocks)
-   *   - Every field with a soft violation has been properly overridden
+   *   Soft violations are auto-processed by the backend; they do not block submission.
    *
    * @param {object} metaMap - The full per-field meta map from FormStateManager
    * @returns {boolean}
@@ -458,9 +456,6 @@ export const ValidationEngine = {
   isFormEligibleForSubmission(metaMap) {
     for (const m of Object.values(metaMap)) {
       if (m.strictValid !== true) return false;
-      if (m.softValid === false) {
-        if (!m.exceptionRequested || !m.rationaleValid) return false;
-      }
     }
     return true;
   },

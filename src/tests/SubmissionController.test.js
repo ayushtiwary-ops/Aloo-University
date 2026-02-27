@@ -128,7 +128,7 @@ describe('SubmissionController', () => {
       expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.exceptionCount).toBe(0);
     });
 
-    it('exceptionCount counts only fields where exceptionRequested AND rationaleValid', async () => {
+    it('exceptionCount counts all fields with a soft violation (softValid===false)', async () => {
       const meta = makeMeta({
         score:            exceptionMeta('approved by dean of admissions'),
         percentageOrCgpa: exceptionMeta('special case — international transcript'),
@@ -137,18 +137,18 @@ describe('SubmissionController', () => {
       expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.exceptionCount).toBe(2);
     });
 
-    it('a requested but invalid rationale does NOT count as an exception', async () => {
+    it('a field with a soft violation is auto-counted as an exception', async () => {
       const meta = makeMeta({
         score: {
           ...exceptionMeta(),
-          rationaleValid: false, // not yet valid
+          rationaleValid: false, // no longer affects count — softValid===false is sufficient
         },
       });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.exceptionCount).toBe(0);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.exceptionCount).toBe(1);
     });
 
-    it('exceptions array contains entries for each active exception field', async () => {
+    it('exceptions array contains entries for each soft-violated field', async () => {
       const meta = makeMeta({
         score: exceptionMeta('approved by committee member', ['approved by']),
       });
@@ -156,17 +156,16 @@ describe('SubmissionController', () => {
       const { exceptions } = mockAuditService.addRecord.mock.calls[0][0];
       expect(exceptions).toHaveLength(1);
       expect(exceptions[0].field).toBe('score');
-      expect(exceptions[0].rationale).toBe('approved by committee member');
+      expect(exceptions[0].rationale).toBe('Auto-generated: Soft rule threshold deviation.');
     });
 
-    it('exceptions[].keywordsMatched lists keywords present in the rationale', async () => {
+    it('exceptions[].keywordsMatched is empty (auto-generated rationale)', async () => {
       const meta = makeMeta({
         score: exceptionMeta('approved by director of admissions', ['approved by', 'director']),
       });
       await controller.submit(makeSnapshot(), meta);
       const { keywordsMatched } = mockAuditService.addRecord.mock.calls[0][0].exceptions[0];
-      expect(keywordsMatched).toContain('approved by');
-      expect(keywordsMatched).toContain('director');
+      expect(keywordsMatched).toEqual([]);
     });
 
     it('validationSummary.flagged is false when exceptionCount is 0', async () => {
@@ -174,13 +173,13 @@ describe('SubmissionController', () => {
       expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.flagged).toBe(false);
     });
 
-    it('validationSummary.flagged is false when exceptionCount is exactly 2', async () => {
+    it('validationSummary.flagged is true when any soft violation exists', async () => {
       const meta = makeMeta({
         score:            exceptionMeta('approved by dean one'),
         percentageOrCgpa: exceptionMeta('approved by dean two'),
       });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.flagged).toBe(false);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.flagged).toBe(true);
     });
 
     it('validationSummary.flagged is true when exceptionCount exceeds 2', async () => {
@@ -211,10 +210,10 @@ describe('SubmissionController', () => {
       expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.eligibilityStatus).toBe('Clean');
     });
 
-    it('validationSummary.eligibilityStatus is "With Exceptions" for 1-2 exceptions', async () => {
+    it('validationSummary.eligibilityStatus is "Flagged" when any soft violation exists', async () => {
       const meta = makeMeta({ score: exceptionMeta('approved by director') });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.eligibilityStatus).toBe('With Exceptions');
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.eligibilityStatus).toBe('Flagged');
     });
 
     it('validationSummary.eligibilityStatus is "Flagged" when exceptionCount > 2', async () => {
@@ -262,6 +261,21 @@ describe('SubmissionController', () => {
       const rec = mockAuditService.addRecord.mock.calls[0][0];
       expect(rec.reviewed).toBe(false);
       expect(rec.reviewedAt).toBeNull();
+    });
+
+    it('record.riskLevel is Low for a clean submission', async () => {
+      await controller.submit(makeSnapshot(), makeMeta()); // riskScore = 0
+      expect(mockAuditService.addRecord.mock.calls[0][0].riskLevel).toBe('Low');
+    });
+
+    it('record.riskLevel is High when riskScore > 50', async () => {
+      const meta = makeMeta({
+        score:            exceptionMeta('approved by director'),
+        percentageOrCgpa: exceptionMeta('approved by board'),
+        graduationYear:   exceptionMeta('approved by committee'),
+      });
+      await controller.submit(makeSnapshot(), meta); // 3 exceptions → riskScore ≥ 51
+      expect(mockAuditService.addRecord.mock.calls[0][0].riskLevel).toBe('High');
     });
   });
 

@@ -17,6 +17,7 @@
  *     validationSummary: { strictPassed, softViolations, exceptionCount, flagged, eligibilityStatus },
  *     exceptions: [{ field, rationale, keywordsMatched }],
  *     riskScore,
+ *     riskLevel,   ('Low' | 'Medium' | 'High')
  *     reviewed, reviewedAt,
  *   }
  *
@@ -54,6 +55,10 @@ function _computeRiskScore(exceptionCount, snapshot) {
   return score;
 }
 
+// ── Auto-generated rationale for soft violations ───────────────────────────
+
+const AUTO_RATIONALE = 'Auto-generated: Soft rule threshold deviation.';
+
 // ── Audit record builder (pure, injectable for tests) ──────────────────────
 
 function _buildRecord(snapshot, meta, generateId, auditService) {
@@ -61,31 +66,29 @@ function _buildRecord(snapshot, meta, generateId, auditService) {
   const submissionId = auditService.nextId(); // AG-YYYY-NNNN for the confirmation modal
   const timestamp    = new Date().toISOString();
 
-  // Fields with a fully valid exception (requested + rationale accepted)
+  // Auto-detect soft violations — no manual exception request required
   const exceptionFields = Object.entries(meta)
-    .filter(([, m]) => m.exceptionRequested && m.rationaleValid)
+    .filter(([, m]) => m.softValid === false)
     .map(([fieldId]) => fieldId);
 
   const exceptionCount = exceptionFields.length;
-  const flagged        = exceptionCount > 2;
+  const flagged        = exceptionCount > 0;
   const strictPassed   = Object.values(meta).every((m) => m.strictValid === true);
-  const softViolations = Object.values(meta).filter((m) => m.softValid === false).length;
+  const softViolations = exceptionCount;
 
-  // Eligibility status
-  let eligibilityStatus = 'Clean';
-  if (flagged) eligibilityStatus = 'Flagged';
-  else if (exceptionCount > 0) eligibilityStatus = 'With Exceptions';
+  const eligibilityStatus = exceptionCount > 0 ? 'Flagged' : 'Clean';
 
-  // Per-exception detail: field, rationale text, matched keywords
-  const exceptions = exceptionFields.map((field) => {
-    const m       = meta[field];
-    const keywords = m.rationaleKeywords ?? [];
-    const lower    = (m.rationale ?? '').toLowerCase();
-    const keywordsMatched = keywords.filter((kw) => lower.includes(kw.toLowerCase()));
-    return { field, rationale: m.rationale ?? '', keywordsMatched };
-  });
+  // Per-exception detail: auto-generated rationale, no keyword matching
+  const exceptions = exceptionFields.map((field) => ({
+    field,
+    rationale: AUTO_RATIONALE,
+    keywordsMatched: [],
+  }));
 
   const riskScore = _computeRiskScore(exceptionCount, snapshot);
+  let riskLevel   = riskScore <= 20 ? 'Low' : riskScore <= 50 ? 'Medium' : 'High';
+  // Enforce Medium minimum whenever any soft violation is present
+  if (exceptionCount > 0 && riskLevel === 'Low') riskLevel = 'Medium';
 
   return {
     id,
@@ -101,6 +104,7 @@ function _buildRecord(snapshot, meta, generateId, auditService) {
     },
     exceptions,
     riskScore,
+    riskLevel,
     reviewed:   false,
     reviewedAt: null,
   };
