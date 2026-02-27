@@ -48,7 +48,7 @@ function makeMeta(overrides = {}) {
 }
 
 /** Builds a meta entry for a field with an active, valid exception. */
-function exceptionMeta(rationale = 'approved by the board of governance') {
+function exceptionMeta(rationale = 'approved by the board of governance', keywords = ['approved by']) {
   return {
     strictValid:        true,
     strictErrorMessage: '',
@@ -57,7 +57,7 @@ function exceptionMeta(rationale = 'approved by the board of governance') {
     exceptionRequested: true,
     rationale,
     rationaleValid:     true,
-    rationaleKeywords:  ['approved by'],
+    rationaleKeywords:  keywords,
     rationaleMinLength: 30,
   };
 }
@@ -74,7 +74,7 @@ describe('SubmissionController', () => {
     mockAuditService = {
       generateId: vi.fn(() => 'audit-001'),
       nextId:     vi.fn(() => 'AG-2026-0001'),
-      save:       vi.fn((r) => r),
+      addRecord:  vi.fn((r) => r),
     };
     mockShowModal = vi.fn();
     mockResetFn   = vi.fn();
@@ -101,31 +101,31 @@ describe('SubmissionController', () => {
     it('uses generateId() to set record.id', async () => {
       await controller.submit(makeSnapshot(), makeMeta());
       expect(mockAuditService.generateId).toHaveBeenCalledOnce();
-      expect(mockAuditService.save.mock.calls[0][0].id).toBe('audit-001');
+      expect(mockAuditService.addRecord.mock.calls[0][0].id).toBe('audit-001');
     });
 
     it('record.timestamp is an ISO 8601 string', async () => {
       await controller.submit(makeSnapshot(), makeMeta());
-      const { timestamp } = mockAuditService.save.mock.calls[0][0];
+      const { timestamp } = mockAuditService.addRecord.mock.calls[0][0];
       expect(typeof timestamp).toBe('string');
       expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     });
 
-    it('record.candidateData matches the snapshot values', async () => {
+    it('record.candidateSnapshot matches the snapshot values', async () => {
       const snap = makeSnapshot();
       await controller.submit(snap, makeMeta());
-      expect(mockAuditService.save.mock.calls[0][0].candidateData).toMatchObject(snap);
+      expect(mockAuditService.addRecord.mock.calls[0][0].candidateSnapshot).toMatchObject(snap);
     });
 
-    it('record.candidateData is a copy, not the original snapshot', async () => {
+    it('record.candidateSnapshot is a copy, not the original snapshot', async () => {
       const snap = makeSnapshot();
       await controller.submit(snap, makeMeta());
-      expect(mockAuditService.save.mock.calls[0][0].candidateData).not.toBe(snap);
+      expect(mockAuditService.addRecord.mock.calls[0][0].candidateSnapshot).not.toBe(snap);
     });
 
-    it('record.exceptionCount is 0 when no exceptions are active', async () => {
+    it('validationSummary.exceptionCount is 0 when no exceptions are active', async () => {
       await controller.submit(makeSnapshot(), makeMeta());
-      expect(mockAuditService.save.mock.calls[0][0].exceptionCount).toBe(0);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.exceptionCount).toBe(0);
     });
 
     it('exceptionCount counts only fields where exceptionRequested AND rationaleValid', async () => {
@@ -134,7 +134,7 @@ describe('SubmissionController', () => {
         percentageOrCgpa: exceptionMeta('special case — international transcript'),
       });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.save.mock.calls[0][0].exceptionCount).toBe(2);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.exceptionCount).toBe(2);
     });
 
     it('a requested but invalid rationale does NOT count as an exception', async () => {
@@ -145,73 +145,132 @@ describe('SubmissionController', () => {
         },
       });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.save.mock.calls[0][0].exceptionCount).toBe(0);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.exceptionCount).toBe(0);
     });
 
-    it('exceptionFields lists the fieldIds of active exceptions', async () => {
+    it('exceptions array contains entries for each active exception field', async () => {
       const meta = makeMeta({
-        score: exceptionMeta('approved by committee'),
+        score: exceptionMeta('approved by committee member', ['approved by']),
       });
       await controller.submit(makeSnapshot(), meta);
-      const { exceptionFields } = mockAuditService.save.mock.calls[0][0];
-      expect(exceptionFields).toEqual(['score']);
+      const { exceptions } = mockAuditService.addRecord.mock.calls[0][0];
+      expect(exceptions).toHaveLength(1);
+      expect(exceptions[0].field).toBe('score');
+      expect(exceptions[0].rationale).toBe('approved by committee member');
     });
 
-    it('rationaleMap keys match exceptionFields with their rationale text', async () => {
+    it('exceptions[].keywordsMatched lists keywords present in the rationale', async () => {
       const meta = makeMeta({
-        score: exceptionMeta('approved by director, waiver form attached'),
+        score: exceptionMeta('approved by director of admissions', ['approved by', 'director']),
       });
       await controller.submit(makeSnapshot(), meta);
-      const { rationaleMap } = mockAuditService.save.mock.calls[0][0];
-      expect(rationaleMap).toMatchObject({
-        score: 'approved by director, waiver form attached',
-      });
+      const { keywordsMatched } = mockAuditService.addRecord.mock.calls[0][0].exceptions[0];
+      expect(keywordsMatched).toContain('approved by');
+      expect(keywordsMatched).toContain('director');
     });
 
-    it('flagged is false when exceptionCount is 0', async () => {
+    it('validationSummary.flagged is false when exceptionCount is 0', async () => {
       await controller.submit(makeSnapshot(), makeMeta());
-      expect(mockAuditService.save.mock.calls[0][0].flagged).toBe(false);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.flagged).toBe(false);
     });
 
-    it('flagged is false when exceptionCount is exactly 2', async () => {
+    it('validationSummary.flagged is false when exceptionCount is exactly 2', async () => {
       const meta = makeMeta({
         score:            exceptionMeta('approved by dean one'),
         percentageOrCgpa: exceptionMeta('approved by dean two'),
       });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.save.mock.calls[0][0].flagged).toBe(false);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.flagged).toBe(false);
     });
 
-    it('flagged is true when exceptionCount exceeds 2', async () => {
+    it('validationSummary.flagged is true when exceptionCount exceeds 2', async () => {
       const meta = makeMeta({
         score:            exceptionMeta('approved by director'),
         percentageOrCgpa: exceptionMeta('approved by board'),
         graduationYear:   exceptionMeta('approved by committee'),
       });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.save.mock.calls[0][0].flagged).toBe(true);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.flagged).toBe(true);
     });
 
-    it('strictValid is true when all meta fields are strictValid=true', async () => {
+    it('validationSummary.strictPassed is true when all meta fields are strictValid=true', async () => {
       await controller.submit(makeSnapshot(), makeMeta());
-      expect(mockAuditService.save.mock.calls[0][0].strictValid).toBe(true);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.strictPassed).toBe(true);
     });
 
-    it('strictValid is false when any field has strictValid !== true', async () => {
+    it('validationSummary.strictPassed is false when any field has strictValid !== true', async () => {
       const meta = makeMeta({
         email: { ...makeMeta().email, strictValid: false },
       });
       await controller.submit(makeSnapshot(), meta);
-      expect(mockAuditService.save.mock.calls[0][0].strictValid).toBe(false);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.strictPassed).toBe(false);
+    });
+
+    it('validationSummary.eligibilityStatus is "Clean" when no exceptions', async () => {
+      await controller.submit(makeSnapshot(), makeMeta());
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.eligibilityStatus).toBe('Clean');
+    });
+
+    it('validationSummary.eligibilityStatus is "With Exceptions" for 1-2 exceptions', async () => {
+      const meta = makeMeta({ score: exceptionMeta('approved by director') });
+      await controller.submit(makeSnapshot(), meta);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.eligibilityStatus).toBe('With Exceptions');
+    });
+
+    it('validationSummary.eligibilityStatus is "Flagged" when exceptionCount > 2', async () => {
+      const meta = makeMeta({
+        score:            exceptionMeta('approved by director'),
+        percentageOrCgpa: exceptionMeta('approved by board'),
+        graduationYear:   exceptionMeta('approved by committee'),
+      });
+      await controller.submit(makeSnapshot(), meta);
+      expect(mockAuditService.addRecord.mock.calls[0][0].validationSummary.eligibilityStatus).toBe('Flagged');
+    });
+
+    // ── Risk score ─────────────────────────────────────────────────────────
+
+    it('riskScore is 0 for a clean submission with high screening score', async () => {
+      await controller.submit(makeSnapshot(), makeMeta()); // snapshot.score = '80'
+      expect(mockAuditService.addRecord.mock.calls[0][0].riskScore).toBe(0);
+    });
+
+    it('riskScore adds +20 per exception', async () => {
+      const meta = makeMeta({ score: exceptionMeta('approved by director') });
+      await controller.submit(makeSnapshot(), meta); // 1 exception × 20 = 20
+      expect(mockAuditService.addRecord.mock.calls[0][0].riskScore).toBe(20);
+    });
+
+    it('riskScore adds +15 when screening score < 45', async () => {
+      const lowSnap = { ...makeSnapshot(), score: '30' };
+      await controller.submit(lowSnap, makeMeta());
+      expect(mockAuditService.addRecord.mock.calls[0][0].riskScore).toBe(15);
+    });
+
+    it('riskScore is at least 51 when exceptionCount > 2 (auto High)', async () => {
+      const meta = makeMeta({
+        score:            exceptionMeta('approved by director'),
+        percentageOrCgpa: exceptionMeta('approved by board'),
+        graduationYear:   exceptionMeta('approved by committee'),
+      });
+      // 3 exceptions × 20 = 60; already >= 51
+      await controller.submit(makeSnapshot(), meta);
+      expect(mockAuditService.addRecord.mock.calls[0][0].riskScore).toBeGreaterThanOrEqual(51);
+    });
+
+    it('record.reviewed is false and record.reviewedAt is null', async () => {
+      await controller.submit(makeSnapshot(), makeMeta());
+      const rec = mockAuditService.addRecord.mock.calls[0][0];
+      expect(rec.reviewed).toBe(false);
+      expect(rec.reviewedAt).toBeNull();
     });
   });
 
   // ── Side effects ──────────────────────────────────────────────────────────
 
   describe('side effects', () => {
-    it('calls auditService.save() exactly once', async () => {
+    it('calls auditService.addRecord() exactly once', async () => {
       await controller.submit(makeSnapshot(), makeMeta());
-      expect(mockAuditService.save).toHaveBeenCalledOnce();
+      expect(mockAuditService.addRecord).toHaveBeenCalledOnce();
     });
 
     it('calls showModal with the saved audit record', async () => {
@@ -227,7 +286,7 @@ describe('SubmissionController', () => {
 
     it('calls resetFn after saving the audit record', async () => {
       const callOrder = [];
-      mockAuditService.save.mockImplementation((r) => { callOrder.push('save'); return r; });
+      mockAuditService.addRecord.mockImplementation((r) => { callOrder.push('save'); return r; });
       mockResetFn.mockImplementation(() => callOrder.push('reset'));
 
       await controller.submit(makeSnapshot(), makeMeta());

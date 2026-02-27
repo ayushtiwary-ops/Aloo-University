@@ -5,16 +5,20 @@
  *
  * Persists to localStorage under STORAGE_KEY so records survive page reloads.
  * All public methods are safe against corrupted or missing storage data.
+ * Push-only: records are never overwritten once written.
  *
  * API:
- *   generateId()      — returns a collision-resistant unique string
- *   save(record)      — persists record; silently ignores duplicate IDs
- *   getAll()          — returns a deep copy of all persisted records
- *   clear()           — removes all records from localStorage
- *   record(event, payload) — legacy lightweight event log (console only)
+ *   generateId()           — returns a collision-resistant unique string
+ *   nextId()               — returns an incrementing AG-YYYY-NNNN submission ID
+ *   addRecord(record)      — persists record; silently ignores duplicate IDs
+ *   getAll()               — returns a deep copy of all persisted records
+ *   clearAll()             — removes all records from localStorage
+ *   filterByStatus(status) — returns records matching a compliance status or risk level
+ *   computeAnalytics()     — returns aggregate compliance metrics
+ *   record(event, payload) — lightweight non-persistent event logger
  */
 
-const STORAGE_KEY = 'aloo_admitguard_audit_log';
+const STORAGE_KEY = 'admitguard_audit_log_v1';
 
 // ── Private helpers ────────────────────────────────────────────────────────
 
@@ -38,6 +42,16 @@ function _read() {
  */
 function _write(records) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+/**
+ * Derives a risk level label from a numeric risk score.
+ * Low: 0–20  |  Medium: 21–50  |  High: 51+
+ */
+function _riskLevel(score) {
+  if (score <= 20) return 'Low';
+  if (score <= 50) return 'Medium';
+  return 'High';
 }
 
 // ── Factory ────────────────────────────────────────────────────────────────
@@ -79,22 +93,25 @@ export function createAuditService() {
     },
 
     /**
-     * Persists `record` to localStorage.
+     * Persists `record` to localStorage (push-only — never overwrites).
      * If a record with the same `id` already exists the call is a no-op.
+     *
+     * Also registers the candidate email in the uniqueness registry so that
+     * the emailUniqueness validator can check it.
      *
      * @param   {object} record
      * @returns {object} The saved record (same reference as input).
      */
-    save(record) {
+    addRecord(record) {
       const existing = _read();
       const isDuplicate = existing.some((r) => r.id === record.id);
       if (isDuplicate) return record;
 
       _write([...existing, record]);
 
-      // Register email so emailUniqueness validator can check it
+      // Register email for uniqueness checks
       try {
-        const email = record.candidateData?.email;
+        const email = record.candidateSnapshot?.email;
         if (email) {
           const EMAIL_REGISTRY_KEY = 'admitguard_registered_emails';
           const raw = localStorage.getItem(EMAIL_REGISTRY_KEY);
@@ -123,8 +140,82 @@ export function createAuditService() {
      * Removes all audit records from localStorage.
      * Does not throw when called on an already-empty log.
      */
-    clear() {
+    clearAll() {
       localStorage.removeItem(STORAGE_KEY);
+    },
+
+    /**
+     * Returns records matching a compliance status filter.
+     *
+     * @param {string|null} status
+     *   'All' | null         → all records
+     *   'Clean'              → eligibilityStatus === 'Clean'
+     *   'With Exceptions'    → eligibilityStatus === 'With Exceptions'
+     *   'Flagged'            → eligibilityStatus === 'Flagged'
+     *   'High Risk'          → riskScore derives to 'High' level (51+)
+     * @returns {object[]} Shallow copies of matching records.
+     */
+    filterByStatus(status) {
+      const all = _read();
+      if (!status || status === 'All') return all.map((r) => ({ ...r }));
+      if (status === 'High Risk') {
+        return all
+          .filter((r) => _riskLevel(r.riskScore ?? 0) === 'High')
+          .map((r) => ({ ...r }));
+      }
+      return all
+        .filter((r) => r.validationSummary?.eligibilityStatus === status)
+        .map((r) => ({ ...r }));
+    },
+
+    /**
+     * Computes aggregate compliance metrics from all stored records.
+     *
+     * @returns {{
+     *   total:            number,
+     *   cleanCount:       number,
+     *   exceptionCount:   number,   // records with eligibilityStatus 'With Exceptions'
+     *   flaggedCount:     number,
+     *   avgExceptions:    number,   // 1 decimal place
+     *   riskDistribution: { low: number, medium: number, high: number }
+     * }}
+     */
+    computeAnalytics() {
+      const records = _read();
+      const total   = records.length;
+
+      let cleanCount       = 0;
+      let withExceptions   = 0;
+      let flaggedCount     = 0;
+      let totalExceptions  = 0;
+      let lowRisk = 0, medRisk = 0, highRisk = 0;
+
+      for (const r of records) {
+        const es = r.validationSummary?.eligibilityStatus;
+        if      (es === 'Clean')           cleanCount++;
+        else if (es === 'With Exceptions') withExceptions++;
+        else if (es === 'Flagged')         flaggedCount++;
+
+        totalExceptions += r.validationSummary?.exceptionCount ?? 0;
+
+        const level = _riskLevel(r.riskScore ?? 0);
+        if      (level === 'Low')    lowRisk++;
+        else if (level === 'Medium') medRisk++;
+        else                         highRisk++;
+      }
+
+      const avgExceptions = total === 0
+        ? 0
+        : parseFloat((totalExceptions / total).toFixed(1));
+
+      return {
+        total,
+        cleanCount,
+        exceptionCount: withExceptions,
+        flaggedCount,
+        avgExceptions,
+        riskDistribution: { low: lowRisk, medium: medRisk, high: highRisk },
+      };
     },
 
     /**

@@ -58,7 +58,10 @@ export function showConfirmationModal(record) {
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'modal-title');
 
-  const { candidateData = {}, exceptionCount = 0, flagged = false, timestamp, submissionId } = record;
+  const candidateData   = record.candidateSnapshot ?? record.candidateData ?? {};
+  const exceptionCount  = record.validationSummary?.exceptionCount ?? record.exceptionCount ?? 0;
+  const flagged         = record.validationSummary?.flagged ?? record.flagged ?? false;
+  const { timestamp, submissionId } = record;
   const candidateName = candidateData.fullName || '—';
 
   overlay.innerHTML = `
